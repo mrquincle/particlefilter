@@ -28,17 +28,22 @@ SET(TESTBENCH_PATH "test")
 PROJECT(${PROJECT_NAME})
 
 # Find packages
-#FIND_PACKAGE(YARP REQUIRED)
+FIND_PACKAGE(X11 REQUIRED)
+FIND_PACKAGE(Threads REQUIRED)
 
-# Header files
-#INCLUDE_DIRECTORIES(${YARP_INCLUDE_DIRS})
+# Set include directories and libraries to be linked from the results of the find package macros
+IF(X11_FOUND)
+	INCLUDE_DIRECTORIES(${X11_INCLUDE_DIRS})
+	SET(LIBS ${LIBS} ${X11_LIBRARIES})
+ENDIF(X11_FOUND)
 
-# Shared libraries
-#SET(LIBS ${LIBS} ${YARP_LIBRARIES})
+IF(THREADS_FOUND)
+	SET(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
+ENDIF(THREADS_FOUND)
 
 # Some debug information
-MESSAGE("${PROJECT_NAME} is using CXX flags: ${CMAKE_CXX_FLAGS}")
-MESSAGE ("Libraries included: \"${LIBS}\"")
+MESSAGE("[*] ${PROJECT_NAME} is using CXX flags: ${CMAKE_CXX_FLAGS}")
+MESSAGE("[*] Libraries included: \"${LIBS}\"")
 
 # Search for source code.
 FILE(GLOB folder_source src/*.cpp src/*.cc src/*.c ${TESTBENCH_PATH}/*.c ${TESTBENCH_PATH}/*.cpp)

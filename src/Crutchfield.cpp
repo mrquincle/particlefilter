@@ -46,6 +46,7 @@ void Crutchfield::Clear() {
 	if (dist != NULL) {
 		delete [] dist;
 	}
+	dist = NULL;
 }
 
 /**

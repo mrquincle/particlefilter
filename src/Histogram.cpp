@@ -58,6 +58,7 @@ void Histogram::Clear() {
 	if (joint_freq != NULL) {
 		delete [] joint_freq;
 	}
+	freq = joint_freq = NULL;
 }
 
 /**
@@ -65,6 +66,7 @@ void Histogram::Clear() {
  * a time series. We calculate this for all sensor values and calculate the conditional
  * entropy. A structure is needed to store all sensor values over a certain time.
  *
+ * @param frames		all data in the form of a vector of "matrices"
  * @return void
  *
  * Resulting side-information:
@@ -78,30 +80,34 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 	// Delete previous matrices
 	Clear();
 
-	// Create probability matrix
-	cout << "Create probability matrix of size " << bins << "x" << p_size << endl;
+	// Create probability matrix (and show its size to the user)
+	int kB = (bins * p_size) >> 8; float MB = kB / (float)1024; int mb = MB * 100; MB = mb / (float)100;
+	cout << "Create probability matrix of size " << bins << "x" << p_size << " (size = " << MB << "MB)" << endl;
 	freq = new HistogramValue[bins * p_size];
+	std::fill_n(freq, bins * p_size, (HistogramValue)0);
 	if (freq == NULL) {
 		cerr << "Probability matrix could not be allocated" << endl;
+		QUIT_ON_ERROR;
 	}
 
 	// Fill probability matrix
 	cout << "Fill probability matrix" << endl;
-	for (int t = 0; t < frame_count; ++t) {
-		for (int p = 0; p < p_size; ++p) {
+	for (int p = 0; p < p_size; ++p) {
+		for (int t = 0; t < frame_count; ++t) {
 			pDataMatrix data = frames[t];
-			Value v = data[p];
-			int bin = (v * bins) / 256;
-			assert (bin < 256);
+			int bin = value2bin(data[p]);
 			freq[p*bins+bin]++;
 		}
 	}
 
+#ifdef CALC_JOINTFREQ
 	// Create joint probability matrix
 	cout << "Create joint probability matrix of size " << bins << "x" << bins << " * " << p_size * p_size << endl;
 	joint_freq = new HistogramValue[bins_squared * p_size * p_size];
+	std::fill_n(joint_freq, bins_squared * p_size * p_size, (HistogramValue)0);
 	if (joint_freq == NULL) {
 		cerr << "Joint probability matrix could not be allocated" << endl;
+		QUIT_ON_ERROR;
 	}
 
 	// Fill joint probability matrix
@@ -111,10 +117,8 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 			for (int p1 = 1; p1 < p_size; ++p1) {
 				if (p0 <= p1) continue; // omit filling in bottom triangle of matrix
 				pDataMatrix data = frames[t];
-				Value v0 = data[p0];
-				Value v1 = data[p1];
-				int bin0 = (v0 * bins) / 256;
-				int bin1 = (v1 * bins) / 256;
+				int bin0 = value2bin(data[p0]);
+				int bin1 = value2bin(data[p1]);
 				int m = p0*bins_squared + p1*bins_squared*p_size; //offset
 				joint_freq[m+bin0+bins*bin1]++;
 #ifdef VERBOSE
@@ -126,8 +130,8 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 			}
 		}
 	}
+#endif
 }
-
 
 /**
  * Calculates conditional entropy of sensors with respect to each other for a time
@@ -169,14 +173,45 @@ Value Histogram::getConditionalEntropy(int p0, int p1) {
 	return sum;
 }
 
+void Histogram::getFrequencies(vector<HistogramValue> &bin_result) {
+	CHECK_FRAMECOUNT;
+	CHECK_FREQ;
+	bin_result.clear();
+
+	for (int b = 0; b < bins; ++b) {
+		int f = 0;
+		for (int p = 0; p < p_size; ++p) {
+			f += freq[p*bins+b];
+		}
+		bin_result.push_back(f);
+	}
+}
+
+void Histogram::getProbabilities(vector<Value> &bin_result) {
+	CHECK_FRAMECOUNT;
+	CHECK_FREQ;
+	bin_result.clear();
+
+	int sum_f = 0;
+	for (int b = 0; b < bins; ++b) {
+		int f = 0;
+		for (int p = 0; p < p_size; ++p) {
+			f += freq[p*bins+b];
+		}
+		sum_f += f;
+		bin_result.push_back(f);
+	}
+	assert (sum_f != 0);
+	for (int b = 0; b < bins; ++b) {
+		bin_result[b] /= (Value)sum_f;
+	}
+}
+
 #ifdef DEBUG
 
 void Histogram::printFrequencies(int bin) {
-	for (int i = 0; i < p_width; i++) {
-		for (int j = 0; j < p_height; j++) {
-			int p = j * p_width + i;
-			cout << freq[p*bins+bin] << ", ";
-		}
+	for (int p = 0; p < p_size; ++p) {
+		cout << freq[p*bins+bin] << ", ";
 	}
 	cout << endl;
 }
@@ -267,7 +302,7 @@ void Histogram::printDistances() {
 }
 
 pDataMatrix Histogram::drawDistances() {
-	pDataMatrix result = new Value[p_size*p_size];
+	pDataMatrix result = new DataValue[p_size*p_size];
 	for (int p0 = 0; p0 < p_size; ++p0) {
 		for (int p1 = 0; p1 < p_size; ++p1) {
 			Value d = getDistance(p0, p1);

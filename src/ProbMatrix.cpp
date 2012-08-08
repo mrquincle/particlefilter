@@ -34,7 +34,8 @@ ProbMatrix::ProbMatrix(int bins, int width, int height): bins(bins),
 	p_size(height * width),
 	bins_squared(bins*bins),
 	freq(NULL),
-	joint_freq(NULL) {
+	joint_freq(NULL),
+	frame_count(0) {
 
 }
 

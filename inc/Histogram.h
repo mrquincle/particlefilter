@@ -25,13 +25,22 @@
 
 #include <ProbMatrix.h>
 #include <vector>
+#include <assert.h>
+
+//! Container for histogram values
+typedef std::vector<HistogramValue> HistogramValues;
+
+//! Container for normalised histogram values
+typedef std::vector<Value> NormalizedHistogramValues;
 
 /* **************************************************************************************
  * Interface of Histogram
  * **************************************************************************************/
 
 /**
- * This class calculates Histogram from data provided in the form of "matrices".
+ * This class calculates Histogram from data provided in the form of "matrices". It calculates
+ * frequencies, and not probabilities directly. However, the latter can be easily obtained by
+ * properly normalising the frequencies. For that the number of frames is used.
  *
  * Usage:
  *   calcProbabilities
@@ -72,7 +81,32 @@ public:
 	 */
 	Value getConditionalEntropy(int p0, int p1);
 
+	/**
+	 * Calculation that calculates the bin index given a specific value. Currently very simple
+	 * just uniformly dividing bins over the entire expected range from [0,255] of values.
+	 */
+	inline int value2bin(Value v) {
+		assert (v >= 0);
+		int bin = (v * bins) / 256;
+		assert (bin < bins);
+		assert (bin < 256);
+		return bin;
+	}
 
+	/**
+	 * The other (default) function returns the frequency of data events of an individual sensor over
+	 * time. A value is counted several times to fall into bin X over a set of frames, and then
+	 * counted a few times to fall into bin Y over another set of frames.
+	 *
+	 * Contrary to that, this function does forget about individual sensors and returns probability
+	 * measures over all sensors (and over time).
+	 */
+	void getFrequencies(HistogramValues &bin_result);
+
+	/**
+	 * Exactly the same as getFrequencies, but now normalised with the sum of all events.
+	 */
+	void getProbabilities(NormalizedHistogramValues &bin_result);
 #ifdef DEBUG
 	//! Print distances
 	void printDistances();

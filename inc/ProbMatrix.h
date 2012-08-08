@@ -25,9 +25,27 @@
 #ifndef PROBMATRIX_H_
 #define PROBMATRIX_H_
 
-#define CAREFUL_USAGE
+/* **************************************************************************************
+ * Configuration options
+ * **************************************************************************************/
 
-//#undef CAREFUL_USAGE
+//! Adds a lot of extra checks, turn it off for performance (by setting it to 0)
+#define CAREFUL_USAGE 0
+
+//! Remove joint probability calculations, which saves a lot on memory requirements
+#define CALC_JOINTFREQ 0
+
+/* **************************************************************************************
+ * Configuration option consequences
+ * **************************************************************************************/
+
+#if CAREFUL_USAGE == 0
+#undef CAREFUL_USAGE
+#endif
+
+#if CALC_JOINTFREQ == 0
+#undef CALC_JOINTFREQ
+#endif
 
 #ifndef CAREFUL_USAGE
 #define CHECK_FREQ
@@ -38,6 +56,16 @@
 #define CHECK_JOINTFREQ { assert (joint_freq != NULL); }
 #define CHECK_FRAMECOUNT { assert (frame_count > 0); }
 #endif
+
+#ifndef CAREFUL_USAGE
+#define QUIT_ON_ERROR { assert(false); }
+#else
+#define QUIT_ON_ERROR { return; }
+#endif
+
+/* **************************************************************************************
+ * Includes
+ * **************************************************************************************/
 
 // General files
 #include <vector>
@@ -51,10 +79,20 @@
  * General data types/formats
  * **************************************************************************************/
 
+/**
+ * Probabilities need to represented by floats or doubles.
+ */
 typedef float Value;
 
 /**
- * For just counting (to create histogram) you will not need floating point values.
+ * It is possible to represent the incoming data by floats, doubles, chars, integers,
+ * whatever floats your boat. :-)
+ */
+typedef unsigned char DataValue;
+
+/**
+ * For just counting (to create histogram) you will not need floating point values. We will
+ * use integers for that.
  */
 typedef int HistogramValue;
 
@@ -64,7 +102,7 @@ typedef int HistogramValue;
  * be passed like function(pDataMatrix data) and put in a vector as vector<pDataMatrix>, because it
  * doesn't actually carry the values "with it".
  */
-typedef Value* pDataMatrix;
+typedef DataValue* pDataMatrix;
 
 /**
  * A (successive) series of data frames is a vector, with each element referring to an array

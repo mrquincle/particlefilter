@@ -27,14 +27,17 @@
 #include <Histogram.h>
 #include <Container.hpp>
 #include <Autoregression.hpp>
-// The alphanum sorting functionality is only added for testing purposes
+
 #include <alphanum.hpp>
 #include <algorithm>
+#include <vector>
 
 //! The fastest way to implement is to use boost::filesystem::recursive_directory,
 //! however, that adds another dependency (boost libraries), so we just use a simple path
 //! iterator: http://bit.ly/MYDCno
 #include <dirent.h>
+
+#include <testRegression.h>
 
 using namespace cimg_library;
 using namespace std;
@@ -44,17 +47,12 @@ using namespace std;
  * **************************************************************************************/
 
 struct ParticleState {
-//	int x;
-//	int y;
 	int width;
 	int height;
 	int histogram;
 
 	std::vector<Value> x;
 	std::vector<Value> y;
-	// History x[n-1], x[n-2], etc.
-//	int x1, x2;
-//	int y1, y2;
 };
 
 /**
@@ -67,8 +65,8 @@ public:
 		bins = 16;
 		seed = 234789;
 		auto_coeff.clear();
-		auto_coeff.push_back(0.23);
-		auto_coeff.push_back(0.12);
+		auto_coeff.push_back(2.0);
+		auto_coeff.push_back(-1.0);
 		srand48(seed);
 	}
 
@@ -80,14 +78,48 @@ public:
 
 	}
 
+	/**
+	 * Normal state of affairs is to use an autoregressive model to estimate where an
+	 * object will be next. There are however many different autoregressive models in use,
+	 * and it doesn't seem there is a "standard" way...:
+	 * <ul>
+	 * <li>Robust Visual Tracking for Multiple Targets (Cai, Freitas, Little):
+	 *     x[n] = A x[n-1] + B x[n-2] + C N(0,1) </li>
+	 * <li>CamShift Guided Particle Filter for Visual Tracking (Wang, Yang, Xy, Yu):
+	 *     x[n] = 2*x[n-1] - x[n-2] + N(0,1) </li>
+	 * <li>Real-time Hand Tracking using a Mean Shift Embedded Particle Filter (Shan,
+	 * Tan, Wei):
+	 *     (x[n] - x[n-1]) = (x[n-1] - x[n-2]) + N(0,1)</li>
+	 * <li>PFCHA: A New Moving Object Tracking Algorithms Based on Particle Filter
+	 * and Histogram (Qi, JiaFu):
+	 *     (x[n] - x_avg) = A (x[n-1] - x_avg) + B (x[n-2] - x_avg) + N(0,1)</li>
+	 * </ul>
+	 * Obviously, the second and third are the same. To have a second-order autoregressive
+	 * process "over differences" it is for example also possible to use:
+	 *   x[n+1] = x[n] + A (x[n] - x[n-1]) + B (x[n-1] - x[n-2]) + N(0,1)
+	 * etcetera, etcetera.
+	 * I think it's smart to consider a formulation where x[n], x[n-1], ... can be used
+	 * directly, so we do not need to store differences in our vector for "predict", hence
+	 * I opt for the second formulation (auto_coeff[0] = 2, auto_coeff[1] = -1).
+	 *
+	 */
 	ParticleState *Transition(ParticleState oldp) {
-		ParticleState newp;
-//		int x = a1 * oldp.x1 + a2 * oldp.x2 + drand48();
+		ParticleState & newp = *new ParticleState();
 
-		int xn = dobots::predict(oldp.x, auto_coeff);
-//		newp.x = std::max(0, std::min((int)img->_width-1, x));
-//		newp.y = std::max(0, std::min((int)img->_height-1, y));
+		int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
+		int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
 
+		xn = std::max(0, std::min((int)img->_width-1, xn));
+		yn = std::max(0, std::min((int)img->_height-1, yn));
+
+		newp.height = oldp.height;
+		newp.width = oldp.width;
+		newp.histogram = oldp.histogram;
+
+		dobots::pushpop(newp.x.begin(), newp.x.end(), xn);
+		dobots::pushpop(newp.y.begin(), newp.y.end(), yn);
+
+		return &newp;
 	}
 
 	void Likelihood() {
@@ -168,34 +200,6 @@ bool getFilenames(vector<string> &names, std::string path, std::string extension
 	return true;
 }
 
-void test_histogram() {
-	cout << " === start test histogram === " << endl;
-	int size = 10;
-	int bins = 4;
-	Histogram histogram(bins, size, 1);
-
-	DataFrames frames;
-	int nof_frames = 1;
-	for (int f = 0; f < nof_frames; ++f) {
-		pDataMatrix data = new DataValue[size];
-		for (int i = 0; i < size; ++i) {
-			data[i] = 40 * ((i % 2) + 1); // set values 40 or 80
-		}
-		frames.push_back(data);
-	}
-
-	histogram.calcProbabilities(frames);
-
-	std::vector<Value> result;
-	histogram.getProbabilities(result);
-
-	cout << "Result: ";
-	for (int i = 0; i < result.size(); ++i) {
-		cout << result[i] << ' ';
-	}
-	cout << endl;
-	cout << " === end test histogram === " << endl;
-}
 
 /**
  * Showcase for a particle filter. It - for that reason - uses images, because it is easier
@@ -204,6 +208,7 @@ void test_histogram() {
  */
 int main() {
 //	test_histogram();
+//	test_autoregression();
 //	return EXIT_SUCCESS;
 
 	PositionParticleFilter pf;
@@ -236,8 +241,8 @@ int main() {
 			main_disp.wait();
 			if (main_disp.button() && main_disp.mouse_y()>=0) {
 				const int y = main_disp.mouse_y();
-				//			img.draw_rectangle;
-				//			img.draw_rectangle(0,y0,img.width()-1,y0+12,red);
+				// img.draw_rectangle;
+				// img.draw_rectangle(0,y0,img.width()-1,y0+12,red);
 				// from http://www.codeproject.com/answers/55965/How-to-select-an-area-from-displayed-image-using-C.aspx#answer2
 				CImg <int> img_coords = img.get_select(main_disp,2,0);
 				CImg <unsigned char> img_selection = img.get_crop(img_coords(0),img_coords(1),img_coords(3),img_coords(4));
@@ -268,9 +273,10 @@ int main() {
 						cout << result[i] << ' ';
 					}
 					cout << " with sum = " << sum << endl;
+
+//					const CImg<float> img_hist = img_selection.histogram(16, 0, 255);
+//					img_hist.display_graph(0,3);
 				}
-				//const CImg<float> img_hist = image_selected.histogram(16);
-				//img2.display_graph(0,3);
 
 				// show the selection
 				CImgDisplay disp2(img_selection, "Cropped image selection");

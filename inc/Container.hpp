@@ -25,10 +25,12 @@
 #define CONTAINER_H_
 
 // General files
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 #include <functional>
 #include <numeric>
+#include <iostream>
+#include <cmath>
 
 /****************************************************************************************************
  * Helper functions for containers.

@@ -21,9 +21,7 @@
  * @case    modular robotics / sensor fusion
  */
 
-#include <ParticleFilter.hpp>
-#include <CImg.h>
-
+#include <PositionParticleFilter.h>
 #include <Histogram.h>
 #include <Container.hpp>
 #include <Autoregression.hpp>
@@ -32,12 +30,15 @@
 #include <algorithm>
 #include <vector>
 
+#include <CImg.h>
+
 //! The fastest way to implement is to use boost::filesystem::recursive_directory,
 //! however, that adds another dependency (boost libraries), so we just use a simple path
 //! iterator: http://bit.ly/MYDCno
 #include <dirent.h>
 
 #include <testRegression.h>
+#include <testFilter.h>
 
 using namespace cimg_library;
 using namespace std;
@@ -45,128 +46,6 @@ using namespace std;
 /* **************************************************************************************
  * Implementation of main
  * **************************************************************************************/
-
-struct ParticleState {
-	int width;
-	int height;
-	int histogram;
-
-	std::vector<Value> x;
-	std::vector<Value> y;
-};
-
-/**
- * The particle filter that is used for tracking a 2D screen "position" plus some
- * additional state "elaborations", such as width, height, and histogram.
- */
-class PositionParticleFilter: public ParticleFilter<ParticleState> {
-public:
-	PositionParticleFilter() {
-		bins = 16;
-		seed = 234789;
-		auto_coeff.clear();
-		auto_coeff.push_back(2.0);
-		auto_coeff.push_back(-1.0);
-		srand48(seed);
-	}
-
-	void SetImage(CImg<DataValue> *img) { this->img = img; }
-
-	//! Transition of all particles following a certain motion model
-	void Transition() {
-
-
-	}
-
-	/**
-	 * Normal state of affairs is to use an autoregressive model to estimate where an
-	 * object will be next. There are however many different autoregressive models in use,
-	 * and it doesn't seem there is a "standard" way...:
-	 * <ul>
-	 * <li>Robust Visual Tracking for Multiple Targets (Cai, Freitas, Little):
-	 *     x[n] = A x[n-1] + B x[n-2] + C N(0,1) </li>
-	 * <li>CamShift Guided Particle Filter for Visual Tracking (Wang, Yang, Xy, Yu):
-	 *     x[n] = 2*x[n-1] - x[n-2] + N(0,1) </li>
-	 * <li>Real-time Hand Tracking using a Mean Shift Embedded Particle Filter (Shan,
-	 * Tan, Wei):
-	 *     (x[n] - x[n-1]) = (x[n-1] - x[n-2]) + N(0,1)</li>
-	 * <li>PFCHA: A New Moving Object Tracking Algorithms Based on Particle Filter
-	 * and Histogram (Qi, JiaFu):
-	 *     (x[n] - x_avg) = A (x[n-1] - x_avg) + B (x[n-2] - x_avg) + N(0,1)</li>
-	 * </ul>
-	 * Obviously, the second and third are the same. To have a second-order autoregressive
-	 * process "over differences" it is for example also possible to use:
-	 *   x[n+1] = x[n] + A (x[n] - x[n-1]) + B (x[n-1] - x[n-2]) + N(0,1)
-	 * etcetera, etcetera.
-	 * I think it's smart to consider a formulation where x[n], x[n-1], ... can be used
-	 * directly, so we do not need to store differences in our vector for "predict", hence
-	 * I opt for the second formulation (auto_coeff[0] = 2, auto_coeff[1] = -1).
-	 *
-	 */
-	ParticleState *Transition(ParticleState oldp) {
-		ParticleState & newp = *new ParticleState();
-
-		int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
-		int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
-
-		xn = std::max(0, std::min((int)img->_width-1, xn));
-		yn = std::max(0, std::min((int)img->_height-1, yn));
-
-		newp.height = oldp.height;
-		newp.width = oldp.width;
-		newp.histogram = oldp.histogram;
-
-		dobots::pushpop(newp.x.begin(), newp.x.end(), xn);
-		dobots::pushpop(newp.y.begin(), newp.y.end(), yn);
-
-		return &newp;
-	}
-
-	void Likelihood() {
-		// for every particle calculate likelihood and "calculate" weight
-	}
-
-	float Likelihood(ParticleState state) {
-		CImg <unsigned char> img_selection = img->get_crop(
-				state.x[0],state.y[0],state.x[0]+state.width,state.y[0]+state.height);
-		DataFrames frames;
-		pDataMatrix data = img_selection._data;
-		frames.push_back(data);
-
-		Histogram histogram(bins, img->_width, img->_height);
-		cout << "Add data for histograms" << endl;
-		histogram.calcProbabilities(frames);
-
-		NormalizedHistogramValues result;
-		histogram.getProbabilities(result);
-
-		Value dist = dobots::distance<Value>(tracked_object_histogram, result, dobots::DM_HELLINGER);
-		return dist;
-	}
-protected:
-
-private:
-	//! The number of bins
-	int bins;
-
-	//! The histogram of the object to be tracked
-	NormalizedHistogramValues tracked_object_histogram;
-
-	//! Image data
-	pDataMatrix data;
-
-	//! Image to get data from
-	CImg<DataValue> * img;
-
-	//! Seed for random number generator
-	int seed;
-
-	//! See http://demonstrations.wolfram.com/AutoRegressiveSimulationSecondOrder/
-	std::vector<Value> auto_coeff;
-
-
-};
-
 
 const unsigned char white[3] = {255,255,255},
 		red[3] = {120,50,80},
@@ -209,7 +88,8 @@ bool getFilenames(vector<string> &names, std::string path, std::string extension
 int main() {
 //	test_histogram();
 //	test_autoregression();
-//	return EXIT_SUCCESS;
+	test_filter();
+	return EXIT_SUCCESS;
 
 	PositionParticleFilter pf;
 
@@ -274,8 +154,10 @@ int main() {
 					}
 					cout << " with sum = " << sum << endl;
 
-//					const CImg<float> img_hist = img_selection.histogram(16, 0, 255);
-//					img_hist.display_graph(0,3);
+#ifdef CIMG_HISTOGRAM
+					const CImg<float> img_hist = img_selection.histogram(16, 0, 255);
+					img_hist.display_graph(0,3);
+#endif
 				}
 
 				// show the selection

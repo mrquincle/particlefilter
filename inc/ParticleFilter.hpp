@@ -31,6 +31,7 @@
 #include <iostream>
 #include <iterator>
 #include <numeric>
+#include <cassert>
 
 /* **************************************************************************************
  * Interface of ParticleFilter
@@ -83,6 +84,14 @@ public:
 		this->state = state;
 		this->weight = weight;
 	}
+
+	inline State getState() { return state; }
+
+	inline double getWeight() { return weight; }
+
+	inline void setState(State state) { this->state = state; }
+
+	inline void setWeight(double weight) { this->weight = weight; }
 private:
 	State state;
 	double weight;
@@ -101,25 +110,34 @@ private:
 };
 
 /**
- * Helper function for sorting
+ * Helper function for sorting (with highest weight first)
  */
 template <typename State>
 bool comp_particles(Particle<State> p0, Particle<State> p1) {
-	return (p0.weight < p1.weight);
+	return (p0.getWeight() > p1.getWeight());
 }
 
 /**
  * Helper function for summing up and normalizing
  */
 template <typename State>
-int sum_particle_weight(double sum, Particle<State> p) {
-	return sum + p->weight;
+double sum_particle_weight(double sum, Particle<State> p) {
+	return sum + p.getWeight();
 }
 
+/**
+ * Helper function for normalizing.
+ */
 template <typename State>
-int divide_weight(Particle<State> p, double factor) {
-	return p->weight / factor;
-}
+class divide_weight {
+public:
+	divide_weight(double factor): factor(factor) {}
+	void operator()(Particle<State> &p) const {
+		p.setWeight(p.getWeight() / factor);
+	}
+private:
+	double factor;
+};
 
 template <typename State>
 class ParticleFilter;
@@ -136,9 +154,15 @@ public:
 
 	// Normalize such that total weight sums up to one
 	void Normalize() {
-		double w = std::accumulate(particles.begin(), particles.end(), 0, sum_particle_weight);
-		std::transform(particles.begin(), particles.end(), particles.begin(), divide_weight, w);
+		double w = std::accumulate(particles.begin(), particles.end(), double(0), sum_particle_weight<State>);
+		std::for_each(particles.begin(), particles.end(), divide_weight<State>(w) );
+#ifdef DEBUG
+		double check = std::accumulate(particles.begin(), particles.end(), double(0), sum_particle_weight<State>);
+		std::cout << "Should now sum to 1: " << check << std::endl;
+#endif
 	}
+
+protected:
 
 private:
 	std::vector<Particle<State> > particles;
@@ -203,41 +227,49 @@ public:
 
 	//! Destructor ~ParticleFilter
 	virtual ~ParticleFilter() {}
-protected:
+//protected:
 
 	//! The actual smart part of the particle filter
 	void Resample() {
 		set.Normalize();
-		std::sort(set.particles.begin(), set.particles.end(), comp_particles);
+		// sort, with highest weight first
+		std::sort(set.particles.begin(), set.particles.end(), comp_particles<State>);
 		// now we append
 		int N = set.particles.size(); int newN = 0;
 		for (int i = 0; i < N; ++i) {
-			int copies = ceil(set[i].weight * N);
+			int copies = round(set.particles[i].getWeight() * N);
 			for (int j = 0; j < copies; ++j) {
-				set.particles.push_back(set[i]);
+				set.particles.push_back(set.particles[i]);
 				newN++;
 				if (newN == N) {
 					// now remove first half of it
 					set.particles.erase(set.particles.begin(), set.particles.begin()+N);
+					assert ( set.particles.size() == newN);
 					return;
 				}
 			}
 		}
 		while (newN < N) {
-			set.particles.push_back(set[0]);
+			// duplicate particle with highest weight to get exactly same number again
+			set.particles.push_back(set.particles[0]);
 			newN++;
 		}
 		set.particles.erase(set.particles.begin(), set.particles.begin()+N);
+		assert ( set.particles.size() == newN);
 	}
 
 	//! Transition according to a certain model
 	virtual void Transition() = 0;
 
+protected:
+	//! Hand over access to particles to subclasses
+	std::vector<Particle<State> >& getParticles() { return set.particles; }
 private:
 
 	//! Called "N" in the literature
 	int particle_count;
 
+	//! The actual cloud of particles
 	ParticleSet<State> set;
 };
 

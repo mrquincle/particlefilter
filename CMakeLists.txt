@@ -41,16 +41,18 @@ IF(THREADS_FOUND)
 	SET(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 ENDIF(THREADS_FOUND)
 
-# Some debug information
-MESSAGE("[*] ${PROJECT_NAME} is using CXX flags: ${CMAKE_CXX_FLAGS}")
-MESSAGE("[*] Libraries included: \"${LIBS}\"")
-
 # Search for source code.
 FILE(GLOB folder_source src/*.cpp src/*.cc src/*.c ${TESTBENCH_PATH}/*.c ${TESTBENCH_PATH}/*.cpp)
 FILE(GLOB folder_header inc/*.h inc/*.hpp ${TESTBENCH_PATH}/*.h)
 
-SOURCE_GROUP("Source Files" FILES ${folder_source})
-SOURCE_GROUP("Header Files" FILES ${folder_header})
+# Some debug information
+MESSAGE("[*] ${PROJECT_NAME} is using CXX flags: ${CMAKE_CXX_FLAGS}")
+MESSAGE("[*] Libraries to be linked: \"${LIBS}\"")
+MESSAGE("[*] Include header files: \"${folder_header}\"")
+
+# only useful for visual basic or so
+#SOURCE_GROUP("Source Files" FILES ${folder_source})
+#SOURCE_GROUP("Header Files" FILES ${folder_header})
 
 # Automatically add include directories if needed.
 FOREACH(header_file ${folder_header})

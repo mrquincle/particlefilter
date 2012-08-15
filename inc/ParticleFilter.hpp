@@ -78,33 +78,36 @@ struct commasep: std::ctype<char> {
 template <typename State>
 class Particle {
 public:
-	Particle() { }
+	Particle() {
+		state = new State();
+		weight = 0;
+	}
 
-	Particle(State state, double weight) {
+	Particle(State *state, double weight) {
 		this->state = state;
 		this->weight = weight;
 	}
 
-	inline State getState() { return state; }
+	inline State* getState() { return state; }
 
 	inline double getWeight() { return weight; }
 
-	inline void setState(State state) { this->state = state; }
+	inline void setState(State* state) { this->state = state; }
 
 	inline void setWeight(double weight) { this->weight = weight; }
 private:
-	State state;
+	State *state;
 	double weight;
 
 	friend std::ostream& operator<<(std::ostream& os, const Particle & p) {
-		os << p.weight << ',' << p.state;
+		os << p.weight << ',' << p->state;
 		return os;
 	}
 
 	// append
 	friend std::istream& operator>>( std::istream& is, Particle& p) {
 		is.imbue(std::locale(std::locale(), new commasep));
-		is >> p.weight >> p.state;
+		is >> p.weight >> p->state;
 		return is;
 	}
 };
@@ -113,16 +116,16 @@ private:
  * Helper function for sorting (with highest weight first)
  */
 template <typename State>
-bool comp_particles(Particle<State> p0, Particle<State> p1) {
-	return (p0.getWeight() > p1.getWeight());
+bool comp_particles(Particle<State> * p0, Particle<State> * p1) {
+	return (p0->getWeight() > p1->getWeight());
 }
 
 /**
  * Helper function for summing up and normalizing
  */
 template <typename State>
-double sum_particle_weight(double sum, Particle<State> p) {
-	return sum + p.getWeight();
+double sum_particle_weight(double sum, Particle<State> * p) {
+	return sum + p->getWeight();
 }
 
 /**
@@ -132,8 +135,8 @@ template <typename State>
 class divide_weight {
 public:
 	divide_weight(double factor): factor(factor) {}
-	void operator()(Particle<State> &p) const {
-		p.setWeight(p.getWeight() / factor);
+	void operator()(Particle<State> *p) const {
+		p->setWeight(p->getWeight() / factor);
 	}
 private:
 	double factor;
@@ -165,7 +168,7 @@ public:
 protected:
 
 private:
-	std::vector<Particle<State> > particles;
+	std::vector<Particle<State>* > particles;
 
 	friend class ParticleFilter<State>;
 
@@ -237,7 +240,7 @@ public:
 		// now we append
 		int N = set.particles.size(); int newN = 0;
 		for (int i = 0; i < N; ++i) {
-			int copies = round(set.particles[i].getWeight() * N);
+			int copies = round(set.particles[i]->getWeight() * N);
 			for (int j = 0; j < copies; ++j) {
 				set.particles.push_back(set.particles[i]);
 				newN++;
@@ -268,7 +271,7 @@ public:
 
 protected:
 	//! Hand over access to particles to subclasses
-	std::vector<Particle<State> >& getParticles() { return set.particles; }
+	std::vector<Particle<State>* >& getParticles() { return set.particles; }
 private:
 
 	//! Called "N" in the literature

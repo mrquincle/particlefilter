@@ -26,7 +26,6 @@
 #include <cassert>
 
 using namespace dobots;
-//using namespace std;
 
 /**
  * If you use a stream operator to print the particles, you will need to define it for
@@ -52,10 +51,11 @@ public:
 
 	void Init() {
 		for (int i = 1; i < particle_count+1; ++i) {
-			Particle<TestData> p;
-			TestData data; data.fieldA = i; data.fieldB = i;
-			p.setState(data);
-			p.setWeight(i); // unnormalized
+			Particle<TestData> *p = new Particle<TestData>();
+			TestData *data = new TestData();
+			data->fieldA = i; data->fieldB = i;
+			p->setState(data);
+			p->setWeight(i); // unnormalized
 			getParticles().push_back(p);
 		}
 	}

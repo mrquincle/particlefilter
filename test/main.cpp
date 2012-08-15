@@ -71,8 +71,8 @@ int main() {
 //	test_histogram();
 //	test_autoregression();
 //	test_filter();
-	create_track_image();
-	return EXIT_SUCCESS;
+//	create_track_image();
+//	return EXIT_SUCCESS;
 
 	PositionParticleFilter filter;
 	ImageSource source;
@@ -95,13 +95,14 @@ int main() {
 	NormalizedHistogramValues result;
 	getHistogram(track_img, result);
 
-	string config = fn + ".ini";
+	string config = path + '/' + fn + ".ini";
+	cout << "Load config file: " << config << endl;
 	ConfigFile configfile(config);
 	CImg <int> img_coords(6);
-	configfile.read("coord0", img_coords(0));
-	configfile.read("coord1", img_coords(1));
-	configfile.read("coord3", img_coords(3));
-	configfile.read("coord4", img_coords(4));
+	configfile.readInto(img_coords(0), "coord0");
+	configfile.readInto(img_coords(1), "coord1");
+	configfile.readInto(img_coords(3), "coord3");
+	configfile.readInto(img_coords(4), "coord4");
 
 	filter.Init(result, img_coords, 10);
 
@@ -115,7 +116,7 @@ int main() {
 
 		usleep(200000);
 
-//		track
+		filter.Tick(&img);
 
 		delete &img;
 	}

@@ -43,8 +43,11 @@ PositionParticleFilter::~PositionParticleFilter() {
 
 void PositionParticleFilter::Tick(CImg<DataValue> *img_frame)  {
 	img = img_frame;
+	cout << "Transition all particles" << endl;
 	Transition();
+	cout << "Likelihood for all particles" << endl;
 	Likelihood();
+	cout << "Resample all particles" << endl;
 	Resample();
 }
 
@@ -54,19 +57,34 @@ void PositionParticleFilter::Tick(CImg<DataValue> *img_frame)  {
 void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_histogram,
 		CImg<int> &coord, int particle_count) {
 
+	getParticles().clear();
+
+	int width = coord(3) - coord(0);
+	int height = coord(4) - coord(1);
+
+	cout << "Width*height=" << width << '*' << height << endl;
+
 	// generate duplicates of particles
 	for (int i = 0; i < particle_count; ++i) {
+
 		this->tracked_object_histogram = tracked_object_histogram;
-		Particle<ParticleState> &p  = *new Particle<ParticleState>();
-		ParticleState s = p.getState();
-		s.width = coord(3) - coord(0);
-		s.height = coord(4) - coord(1);
-		s.x.push_back(coord(0) + s.width / 2);
-		s.y.push_back(coord(1) + s.height / 2);
+		Particle<ParticleState> *p  = new Particle<ParticleState>();
+		ParticleState *s = p->getState();
+		s->width = width;
+		s->height = height;
+		s->x.push_back(coord(0) + width / 2);
+		s->y.push_back(coord(1) + height / 2);
 		//	s.histogram
 		//	s.
+		cout << "Create particle " << *p->getState() << endl;
 		getParticles().push_back(p);
 	}
+
+	std::vector<Particle<ParticleState>* >::iterator i;
+	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
+		cout << "Created particle " << *(*i)->getState() << endl;
+	}
+	assert (getParticles().size() == particle_count);
 }
 
 /**
@@ -75,16 +93,18 @@ void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_hist
  * iterate through the entire container and do the transition "in place".
  */
 void PositionParticleFilter::Transition() {
-	std::vector<Particle<ParticleState> >::iterator i;
+	std::vector<Particle<ParticleState>* >::iterator i;
 	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
-		doTransition(i->getState());
+		ParticleState *state = (*i)->getState();
+		doTransition(*state);
 	}
 }
 
 void PositionParticleFilter::Likelihood() {
-	std::vector<Particle<ParticleState> >::iterator i;
+	std::vector<Particle<ParticleState>* >::iterator i;
 	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
-		i->setWeight(Likelihood(i->getState()));
+		float weight = Likelihood(*(*i)->getState());
+		(*i)->setWeight(weight);
 	}
 }
 
@@ -135,7 +155,9 @@ ParticleState *PositionParticleFilter::Transition(ParticleState oldp) {
 	return &newp;
 }
 
-void PositionParticleFilter::doTransition(ParticleState oldp) {
+void PositionParticleFilter::doTransition(ParticleState &oldp) {
+	cout << "Transition particle " << oldp.width << endl;
+
 	int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
 	int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
 
@@ -162,7 +184,7 @@ void PositionParticleFilter::Likelihood(RegionSize region_size) {
  * @param state			the state of the particle (position, width, height)
  * @return				conceptual "distance" to the reference (tracked) object
  */
-float PositionParticleFilter::Likelihood(ParticleState state) {
+float PositionParticleFilter::Likelihood(ParticleState & state) {
 	CImg <unsigned char> img_selection = img->get_crop(
 			state.x[0]-state.width/2,state.y[0]-state.height/2,state.x[0]+state.width/2,state.y[0]+state.height/2);
 	DataFrames frames;

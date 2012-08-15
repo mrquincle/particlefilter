@@ -49,6 +49,11 @@ struct ParticleState {
 
 	std::vector<Value> x;
 	std::vector<Value> y;
+
+	friend std::ostream& operator<<(std::ostream& os, const ParticleState & ps) {
+		os << '[' << ps.width << ',' << ps.height << ']';
+		return os;
+	}
 };
 
 /* **************************************************************************************
@@ -95,7 +100,7 @@ public:
 	/**
 	 * Update particle itself
 	 */
-	void doTransition(ParticleState oldp);
+	void doTransition(ParticleState &oldp);
 
 	/**
 	 * The likelihood of a player at all locations in the image using a given region size.
@@ -117,7 +122,7 @@ protected:
 	 * @param state			the state of the particle (position, width, height)
 	 * @return				conceptual "distance" to the reference (tracked) object
 	 */
-	float Likelihood(ParticleState state);
+	float Likelihood(ParticleState & state);
 
 private:
 	//! The number of bins

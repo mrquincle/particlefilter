@@ -61,14 +61,27 @@ struct ParticleState {
  */
 class PositionParticleFilter: public ParticleFilter<ParticleState> {
 public:
+	//! Default constructor
 	PositionParticleFilter();
 
+	//! Default destructor
 	~PositionParticleFilter();
 
-	void SetImage(CImg<DataValue> *img) { this->img = img; }
+	/**
+	 * Set image and calculate everything necessary... Provide multiple times the same frame
+	 * if that is required.
+	 */
+	void Tick(CImg<DataValue> *img_frame);
 
-	//! Initialize particle cloud
-	void Init(NormalizedHistogramValues &tracked_object_histogram);
+	/**
+	 * Initialize particle cloud.
+	 * @param tracked_object_histogram		histogram of the entity that needs to be tracked
+	 * @param coord							CImg coordinates, careful: picks 0,1 3,4 (skips 2)
+	 * @param particle_count				the number of particles to be generated
+	 * @return void
+	 */
+	void Init(NormalizedHistogramValues &tracked_object_histogram, CImg<int> &coord,
+			int particle_count);
 
 	//! Transition of all particles following a certain motion model
 	void Transition();
@@ -90,6 +103,13 @@ public:
 	void Likelihood(RegionSize region_size);
 
 	/**
+	 * Calculate likelihood of all particles
+	 */
+	void Likelihood();
+
+protected:
+
+	/**
 	 * Calculate the likelihood of a player and the state indicated by the parameter
 	 * "state" which contains an x and y position, a width and a height. This is used
 	 * to define a rectangle for which a histogram is matched against the reference
@@ -98,7 +118,6 @@ public:
 	 * @return				conceptual "distance" to the reference (tracked) object
 	 */
 	float Likelihood(ParticleState state);
-protected:
 
 private:
 	//! The number of bins

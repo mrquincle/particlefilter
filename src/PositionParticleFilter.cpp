@@ -41,6 +41,34 @@ PositionParticleFilter::~PositionParticleFilter() {
 
 }
 
+void PositionParticleFilter::Tick(CImg<DataValue> *img_frame)  {
+	img = img_frame;
+	Transition();
+	Likelihood();
+	Resample();
+}
+
+/**
+ * Initialize the particle filter.
+ */
+void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_histogram,
+		CImg<int> &coord, int particle_count) {
+
+	// generate duplicates of particles
+	for (int i = 0; i < particle_count; ++i) {
+		this->tracked_object_histogram = tracked_object_histogram;
+		Particle<ParticleState> &p  = *new Particle<ParticleState>();
+		ParticleState s = p.getState();
+		s.width = coord(3) - coord(0);
+		s.height = coord(4) - coord(1);
+		s.x.push_back(coord(0) + s.width / 2);
+		s.y.push_back(coord(1) + s.height / 2);
+		//	s.histogram
+		//	s.
+		getParticles().push_back(p);
+	}
+}
+
 /**
  * Transition of all particles following a certain motion model. Due to the fact there is
  * no multiplication or removal in the number of particles at this moment, we can safely
@@ -50,6 +78,13 @@ void PositionParticleFilter::Transition() {
 	std::vector<Particle<ParticleState> >::iterator i;
 	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
 		doTransition(i->getState());
+	}
+}
+
+void PositionParticleFilter::Likelihood() {
+	std::vector<Particle<ParticleState> >::iterator i;
+	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
+		i->setWeight(Likelihood(i->getState()));
 	}
 }
 

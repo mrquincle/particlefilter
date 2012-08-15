@@ -261,6 +261,11 @@ public:
 	//! Transition according to a certain model
 	virtual void Transition() = 0;
 
+	//! Observation model:
+	//! - given a particle, how likely that it is corresponding to the tracked entity?
+	//! This function should calculate this for all particles and update weights accordingly
+	virtual void Likelihood() = 0;
+
 protected:
 	//! Hand over access to particles to subclasses
 	std::vector<Particle<State> >& getParticles() { return set.particles; }

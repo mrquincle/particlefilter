@@ -32,27 +32,39 @@
 
 namespace dobots {
 
+/**
+ * Function to print to standard out. It will accept any container for which an iterator is defined.
+ * The default separator/delimiter is the comma plus a white space. The default empty vector are square
+ * brackets. And by default there will be printed an end of line.
+ * @param first			First item of the range to be printed
+ * @param last			Last item
+ * @param delim			A string of symbols separating the items (will not be printed at the end)
+ * @param empty			The string denoting an empty container
+ * @param endl			Printing a new line at the end of the output or not.
+ */
 template<typename InputIterator>
-void print(InputIterator first, InputIterator last, std::string delim=", ", std::string empty="[]")
+void print(InputIterator first, InputIterator last, std::string delim=", ", std::string empty="[]", bool endl=true)
 {
 	// concept requirements
 	__glibcxx_function_requires(_InputIteratorConcept<InputIterator>);
 	__glibcxx_requires_valid_range(first, last);
-
 	typedef typename std::iterator_traits<InputIterator>::value_type ValueType;
 
-	if (first == last) {
+	switch (std::distance(first, last)) {
+	case 0:
 		std::cout << empty;
-		return;
-	}
-	if (last - first == 1) {
+		break;
+	case 1:
 		std::cout << *first;
-		return;
+		break;
+	default:
+		std::ostringstream ss;
+		std::copy(first, last - 1, std::ostream_iterator< ValueType >(ss, delim.c_str()));
+		ss << *(last - 1);
+		std::cout << ss.str();
+		break;
 	}
-	std::ostringstream ss;
-	std::copy(first, last - 1, std::ostream_iterator< ValueType >(ss, delim.c_str()));
-	ss << *(last - 1);
-	std::cout << ss.str() << std::endl;
+	if (endl) std::cout << std::endl;
 }
 
 }

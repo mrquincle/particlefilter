@@ -29,8 +29,7 @@
  * Configuration options
  * **************************************************************************************/
 
-//! Adds a lot of extra checks, turn it off for performance (by setting it to 0)
-#define CAREFUL_USAGE 0
+#include <Config.h>
 
 //! Remove joint probability calculations, which saves a lot on memory requirements
 #define CALC_JOINTFREQ 0
@@ -38,10 +37,6 @@
 /* **************************************************************************************
  * Configuration option consequences
  * **************************************************************************************/
-
-#if CAREFUL_USAGE == 0
-#undef CAREFUL_USAGE
-#endif
 
 #if CALC_JOINTFREQ == 0
 #undef CALC_JOINTFREQ
@@ -57,11 +52,6 @@
 #define CHECK_FRAMECOUNT { assert (frame_count > 0); }
 #endif
 
-#ifndef CAREFUL_USAGE
-#define QUIT_ON_ERROR { assert(false); }
-#else
-#define QUIT_ON_ERROR { return; }
-#endif
 
 /* **************************************************************************************
  * Includes
@@ -69,11 +59,6 @@
 
 // General files
 #include <vector>
-
-#ifdef CAREFUL_USAGE
-#include <assert.h>
-#include <stdio.h> // definition of NULL
-#endif
 
 /* **************************************************************************************
  * General data types/formats

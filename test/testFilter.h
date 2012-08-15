@@ -68,6 +68,11 @@ public:
 	void Transition() {
 		assert(false);
 	}
+
+	void Likelihood() {
+		assert(false);
+	}
+
 private:
 	int particle_count;
 };

@@ -27,7 +27,7 @@ An example of the particle filter being able to track the docking element of a R
 ## Interesting
 Maybe you find convenient or interesting some of the helper files that have been written for the particle filter.
 
-* [Container.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Container.hpp) which contains distance functions (Euclidean, Battacharyya, Hellinger, Manhattan, Chebyshev) for standard C++ containers. For example the Hellinger distance is [!equation](http://latex.codecogs.com/gif.latex?d(x,y)=1/\sqrt{2}*\sqrt{\sum_{i=1}^k(\sqrt{x_i}-\sqrt{y_i})^2}).
+* [Container.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Container.hpp) which contains distance functions (Euclidean, Battacharyya, Hellinger, Manhattan, Chebyshev) for standard C++ containers. For example the Hellinger distance is [!equation](http://latex.codecogs.com/gif.latex?d\(x,y\)=1/\sqrt{2}*\sqrt{\sum_{i=1}^k\(\sqrt{x_i}-\sqrt{y_i}\)^2}).
 * [Autoregression.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Autoregression.hpp) with three nice utility template functions, one of them does calculate the actual autoregression, the others rotate or perform an automic "push-pop" operation. The latter is convenient if your data container does not happen to be a deque, but for example a vector.
 * [Print.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Print.hpp) in case you print the content of data containers with comma-seperated data fields all the time.
 * [File.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/File.hpp) get files from a directory without any dependencies (such as boost).

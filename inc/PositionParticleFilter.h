@@ -1,6 +1,6 @@
 /**
- * @brief 
- * @file PositionParticleFilter.hpp
+ * @brief Particle Filter for Position Estimates on Images
+ * @file PositionParticleFilter.h
  *
  * This file is created at Almende B.V. It is open-source software and part of the Common 
  * Hybrid Agent Platform (CHAP). A toolbox with a lot of open-source tools, ranging from 
@@ -22,8 +22,8 @@
  */
 
 
-#ifndef POSITIONPARTICLEFILTER_HPP_
-#define POSITIONPARTICLEFILTER_HPP_
+#ifndef POSITIONPARTICLEFILTER_H_
+#define POSITIONPARTICLEFILTER_H_
 
 #include <ParticleFilter.hpp>
 #include <CImg.h>
@@ -154,4 +154,4 @@ private:
 
 };
 
-#endif /* POSITIONPARTICLEFILTER_HPP_ */
+#endif /* POSITIONPARTICLEFILTER_H_ */

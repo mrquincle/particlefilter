@@ -37,7 +37,7 @@ http://latex.codecogs.com/gif.latex?d%28x%2Cy%29%3D1%2F%5Csqrt%7B2%7D*%5Csqrt%7B
 
 -->
 
-* [Container.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Container.hpp) which contains distance functions (Euclidean, Battacharyya, Hellinger, Manhattan, Chebyshev) for standard C++ containers. For example the Hellinger distance is [!equation](http://latex.codecogs.com/gif.latex?d%28x%2Cy%29%3D1%2F%5Csqrt%7B2%7D*%5Csqrt%7B%5Csum_%7Bi%3D1%7D%5Ek%28%5Csqrt%7Bx_i%7D-%5Csqrt%7By_i%7D%29%5E2%7D).
+* [Container.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Container.hpp) which contains distance functions (Euclidean, Battacharyya, Hellinger, Manhattan, Chebyshev) for standard C++ containers. For example the Hellinger distance is ![equation](http://latex.codecogs.com/gif.latex?d%28x%2Cy%29%3D1%2F%5Csqrt%7B2%7D*%5Csqrt%7B%5Csum_%7Bi%3D1%7D%5Ek%28%5Csqrt%7Bx_i%7D-%5Csqrt%7By_i%7D%29%5E2%7D).
 * [Autoregression.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Autoregression.hpp) with three nice utility template functions, one of them does calculate the actual autoregression, the others rotate or perform an automic "push-pop" operation. The latter is convenient if your data container does not happen to be a deque, but for example a vector.
 * [Print.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/Print.hpp) in case you print the content of data containers with comma-seperated data fields all the time.
 * [File.hpp](https://github.com/mrquincle/particlefilter/blob/master/inc/File.hpp) get files from a directory without any dependencies (such as boost).

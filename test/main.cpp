@@ -39,6 +39,8 @@
 using namespace cimg_library;
 using namespace std;
 
+const DataValue red[] = { 255,0,0 }, green[] = { 0,255,0 }, blue[] = { 0,0,255 };
+
 /* **************************************************************************************
  * Implementation of main
  * **************************************************************************************/
@@ -90,7 +92,7 @@ int main() {
 	string fn = "target_t1_1924674796";
 
 	string track = fn + ".jpeg";
-	CImg<unsigned char> &track_img = *source.getImage<unsigned char>(track);
+	CImg<DataValue> &track_img = *source.getImage<DataValue>(track);
 
 	NormalizedHistogramValues result;
 	getHistogram(track_img, result);
@@ -98,7 +100,7 @@ int main() {
 	string config = path + '/' + fn + ".ini";
 	cout << "Load config file: " << config << endl;
 	ConfigFile configfile(config);
-	CImg <int> img_coords(6);
+	CImg <CoordValue> img_coords(6);
 	configfile.readInto(img_coords(0), "coord0");
 	configfile.readInto(img_coords(1), "coord1");
 	configfile.readInto(img_coords(3), "coord3");
@@ -106,15 +108,33 @@ int main() {
 
 	filter.Init(result, img_coords, 10);
 
-	int frame_count = 2; // 25
+	vector <CImg<CoordValue>*> coordinates;
+
+	int frame_count = 25;
 	int frame_id = 0;
 	while (++frame_id < frame_count) {
 
-		CImg<unsigned char> &img = *source.getImage<unsigned char>();
+		CImg<DataValue> &img = *source.getImage<DataValue>();
+
+		cout << "Clear coordinates" << endl;
+		coordinates.erase(coordinates.begin(), coordinates.end());
+		coordinates.clear();
+		filter.GetParticleCoordinates(coordinates);
+
+		for (int i = 0; i < coordinates.size(); ++i) {
+			CImg<CoordValue>* coord = coordinates[i];
+			cout << "Draw rectangle at: [" << coord->_data[0] << "," << coord->_data[1] << "," << coord->_data[3] << "," << coord->_data[4] << "]" << endl;
+			float opacity = 0.05;
+//			img.draw_rectangle(coord->_data[0], coord->_data[1], coord->_data[3], coord->_data[4], red, opacity);
+			img.draw_line(coord->_data[0], coord->_data[1], coord->_data[0], coord->_data[4], red);
+			img.draw_line(coord->_data[0], coord->_data[1], coord->_data[3], coord->_data[1], red);
+			img.draw_line(coord->_data[3], coord->_data[1], coord->_data[3], coord->_data[4], red);
+			img.draw_line(coord->_data[0], coord->_data[4], coord->_data[3], coord->_data[4], red);
+		}
 
 		CImgDisplay main_disp(img, "Show image");
 
-		usleep(200000);
+		usleep(2000000);
 
 		filter.Tick(&img);
 

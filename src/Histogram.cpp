@@ -82,7 +82,7 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 
 	// Create probability matrix (and show its size to the user)
 	int kB = (bins * p_size) >> 8; float MB = kB / (float)1024; int mb = MB * 100; MB = mb / (float)100;
-	cout << "Create probability matrix of size " << bins << "x" << p_size << " (size = " << MB << "MB)" << endl;
+	cout << __func__ << ": Create probability matrix of size " << bins << "x" << p_size << " (size = " << MB << "MB)" << endl;
 	freq = new HistogramValue[bins * p_size];
 	std::fill_n(freq, bins * p_size, (HistogramValue)0);
 	if (freq == NULL) {
@@ -91,14 +91,18 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 	}
 
 	// Fill probability matrix
-	cout << "Fill probability matrix" << endl;
+	cout << __func__ << ": Fill probability matrix" << endl;
 	for (int p = 0; p < p_size; ++p) {
 		for (int t = 0; t < frame_count; ++t) {
 			pDataMatrix data = frames[t];
 			int bin = value2bin(data[p]);
+#ifdef CAREFUL_USAGE
+			assert (p*bins+bin < bins * p_size);
+#endif
 			freq[p*bins+bin]++;
 		}
 	}
+	cout << __func__ << ": Matrices filled" << endl;
 
 #ifdef CALC_JOINTFREQ
 	// Create joint probability matrix

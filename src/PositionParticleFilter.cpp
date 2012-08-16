@@ -35,6 +35,7 @@ PositionParticleFilter::PositionParticleFilter() {
 	auto_coeff.push_back(2.0);
 	auto_coeff.push_back(-1.0);
 	srand48(seed);
+	img = NULL;
 }
 
 PositionParticleFilter::~PositionParticleFilter() {
@@ -55,7 +56,7 @@ void PositionParticleFilter::Tick(CImg<DataValue> *img_frame)  {
  * Initialize the particle filter.
  */
 void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_histogram,
-		CImg<int> &coord, int particle_count) {
+		CImg<CoordValue> &coord, int particle_count) {
 
 	getParticles().clear();
 
@@ -72,18 +73,22 @@ void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_hist
 		ParticleState *s = p->getState();
 		s->width = width;
 		s->height = height;
-		s->x.push_back(coord(0) + width / 2);
-		s->y.push_back(coord(1) + height / 2);
-		//	s.histogram
-		//	s.
-		cout << "Create particle " << *p->getState() << endl;
+		s->x.clear();
+		s->y.clear();
+		int history_size = 2;
+		for (int i = 0; i < history_size; ++i) {
+			s->x.push_back(coord(0) + width / 2);
+			s->y.push_back(coord(1) + height / 2);
+		}
+		//	s. scale/ histogram
+//		cout << "Create particle " << *p->getState() << endl;
 		getParticles().push_back(p);
 	}
 
-	std::vector<Particle<ParticleState>* >::iterator i;
-	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
-		cout << "Created particle " << *(*i)->getState() << endl;
-	}
+//	std::vector<Particle<ParticleState>* >::iterator i;
+//	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
+//		cout << "Created particle " << *(*i)->getState() << endl;
+//	}
 	assert (getParticles().size() == particle_count);
 }
 
@@ -96,6 +101,7 @@ void PositionParticleFilter::Transition() {
 	std::vector<Particle<ParticleState>* >::iterator i;
 	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
 		ParticleState *state = (*i)->getState();
+		assert (state != NULL);
 		doTransition(*state);
 	}
 }
@@ -103,8 +109,33 @@ void PositionParticleFilter::Transition() {
 void PositionParticleFilter::Likelihood() {
 	std::vector<Particle<ParticleState>* >::iterator i;
 	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
-		float weight = Likelihood(*(*i)->getState());
+		ParticleState *state = (*i)->getState();
+		assert (state != NULL);
+		float weight = Likelihood(*state);
 		(*i)->setWeight(weight);
+	}
+}
+
+void PositionParticleFilter::GetParticleCoordinates(std::vector<CImg<CoordValue> *> & coordinates) {
+	// sort to make sure the one with highest weight comes first
+	std::sort(getParticles().begin(), getParticles().end(), comp_particles<ParticleState>);
+
+	std::vector<Particle<ParticleState>* >::iterator i;
+	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
+		CImg<CoordValue> *coord = new CImg<CoordValue>(6);
+		ParticleState *state = (*i)->getState();
+		assert (state != NULL);
+		assert (!state->x.empty());
+		assert (!state->y.empty());
+		float x = state->x.front();
+		float y = state->y.front();
+		float width = state->width;
+		float height = state->height;
+		coord->_data[0] = x-width/2;
+		coord->_data[1] = y-height/2;
+		coord->_data[3] = x+width/2;
+		coord->_data[4] = y+height/2;
+		coordinates.push_back(coord);
 	}
 }
 
@@ -156,13 +187,16 @@ ParticleState *PositionParticleFilter::Transition(ParticleState oldp) {
 }
 
 void PositionParticleFilter::doTransition(ParticleState &oldp) {
-	cout << "Transition particle " << oldp.width << endl;
+
+	cout << "Transition particle from [" << oldp.x.front() << "," << oldp.y.front() << "]" << endl;
 
 	int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
 	int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
 
 	xn = std::max(0, std::min((int)img->_width-1, xn));
 	yn = std::max(0, std::min((int)img->_height-1, yn));
+
+	cout << "Transition particle towards [" << xn << "," << yn << "]" << endl;
 
 	dobots::pushpop(oldp.x.begin(), oldp.x.end(), xn);
 	dobots::pushpop(oldp.y.begin(), oldp.y.end(), yn);
@@ -185,19 +219,23 @@ void PositionParticleFilter::Likelihood(RegionSize region_size) {
  * @return				conceptual "distance" to the reference (tracked) object
  */
 float PositionParticleFilter::Likelihood(ParticleState & state) {
-	CImg <unsigned char> img_selection = img->get_crop(
+	assert (img != NULL);
+	CImg <DataValue> img_selection = img->get_crop(
 			state.x[0]-state.width/2,state.y[0]-state.height/2,state.x[0]+state.width/2,state.y[0]+state.height/2);
 	DataFrames frames;
+	frames.clear();
 	pDataMatrix data = img_selection._data;
 	frames.push_back(data);
 
-	Histogram histogram(bins, img->_width, img->_height);
+	Histogram histogram(bins, img_selection._width, img_selection._height);
 	cout << "Add data for histograms" << endl;
 	histogram.calcProbabilities(frames);
 
+	cout << "Get normalized probabilities" << endl;
 	NormalizedHistogramValues result;
 	histogram.getProbabilities(result);
 
+	cout << "Calculate distance to histogram of the to-be-tracked object" << endl;
 	Value dist = dobots::distance<Value>(tracked_object_histogram, result, dobots::DM_HELLINGER);
 	return dist;
 }

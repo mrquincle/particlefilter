@@ -37,6 +37,9 @@
 using namespace cimg_library;
 using namespace std;
 
+//! An unsigned char would not be enough for a resolution greater than 256x256
+typedef int CoordValue;
+
 struct RegionSize {
 	int width;
 	int height;
@@ -85,7 +88,7 @@ public:
 	 * @param particle_count				the number of particles to be generated
 	 * @return void
 	 */
-	void Init(NormalizedHistogramValues &tracked_object_histogram, CImg<int> &coord,
+	void Init(NormalizedHistogramValues &tracked_object_histogram, CImg<CoordValue> &coord,
 			int particle_count);
 
 	//! Transition of all particles following a certain motion model
@@ -112,6 +115,11 @@ public:
 	 */
 	void Likelihood();
 
+	/**
+	 * Return particles, or more specific, return the coordinates of the particles, ordered
+	 * on weight.
+	 */
+	void GetParticleCoordinates(std::vector<CImg<CoordValue> *> & coordinates);
 protected:
 
 	/**

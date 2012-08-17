@@ -136,9 +136,26 @@ int main() {
 
 		usleep(2000000);
 
+		cout << "One particle filter tick..." << endl;
+
 		filter.Tick(&img);
 
+		cout << "Calculate likelihood for all pixels" << endl;
+		RegionSize region;
+		region.width = img_coords(3)-img_coords(0);
+		region.height = img_coords(4)-img_coords(1);
+		cout << "Create picture of size " << img._height*img._width << endl;
+
+		CImg<DataValue> &img2 = *new CImg<DataValue>(img._width, img._height, 1, 3);
+		filter.GetLikelihoods(img2, region);
+
+		CImgDisplay disp(img2, "Show values");
+
+		usleep(4000000);
+
+
 		delete &img;
+		delete &img2;
 	}
 
 	delete &track_img;

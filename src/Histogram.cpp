@@ -53,9 +53,15 @@ Histogram::~Histogram() {
  */
 void Histogram::Clear() {
 	if (freq != NULL) {
+#ifdef VERBOSE
+		cout << __func__ << ": clear frequency table" << endl;
+#endif
 		delete [] freq;
 	}
 	if (joint_freq != NULL) {
+#ifdef VERBOSE
+		cout << __func__ << ": clear joint frequency table" << endl;
+#endif
 		delete [] joint_freq;
 	}
 	freq = joint_freq = NULL;
@@ -82,7 +88,9 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 
 	// Create probability matrix (and show its size to the user)
 	int kB = (bins * p_size) >> 8; float MB = kB / (float)1024; int mb = MB * 100; MB = mb / (float)100;
+#ifdef VERBOSE
 	cout << __func__ << ": Create probability matrix of size " << bins << "x" << p_size << " (size = " << MB << "MB)" << endl;
+#endif
 	freq = new HistogramValue[bins * p_size];
 	std::fill_n(freq, bins * p_size, (HistogramValue)0);
 	if (freq == NULL) {
@@ -91,7 +99,9 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 	}
 
 	// Fill probability matrix
+#ifdef VERBOSE
 	cout << __func__ << ": Fill probability matrix" << endl;
+#endif
 	for (int p = 0; p < p_size; ++p) {
 		for (int t = 0; t < frame_count; ++t) {
 			pDataMatrix data = frames[t];
@@ -102,7 +112,9 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 			freq[p*bins+bin]++;
 		}
 	}
+#ifdef VERBOSE
 	cout << __func__ << ": Matrices filled" << endl;
+#endif
 
 #ifdef CALC_JOINTFREQ
 	// Create joint probability matrix

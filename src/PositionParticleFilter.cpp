@@ -42,6 +42,12 @@ PositionParticleFilter::~PositionParticleFilter() {
 
 }
 
+/**
+ * Do every action that is necessary to update all particles. This takes three steps:
+ * - transition according to a certain motion model
+ * - observing the likelihood of the object being at the translated position (results in a weight)
+ * - resample according to that likelihood (given by the weight)
+ */
 void PositionParticleFilter::Tick(CImg<DataValue> *img_frame)  {
 	img = img_frame;
 	cout << "Transition all particles" << endl;
@@ -53,7 +59,7 @@ void PositionParticleFilter::Tick(CImg<DataValue> *img_frame)  {
 }
 
 /**
- * Initialize the particle filter.
+ * Initialise the particle filter.
  */
 void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_histogram,
 		CImg<CoordValue> &coord, int particle_count) {
@@ -81,14 +87,9 @@ void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_hist
 			s->y.push_back(coord(1) + height / 2);
 		}
 		//	s. scale/ histogram
-//		cout << "Create particle " << *p->getState() << endl;
 		getParticles().push_back(p);
 	}
 
-//	std::vector<Particle<ParticleState>* >::iterator i;
-//	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
-//		cout << "Created particle " << *(*i)->getState() << endl;
-//	}
 	assert (getParticles().size() == particle_count);
 }
 
@@ -164,27 +165,27 @@ void PositionParticleFilter::GetParticleCoordinates(std::vector<CImg<CoordValue>
  * I opt for the second formulation (auto_coeff[0] = 2, auto_coeff[1] = -1).
  *
  */
-ParticleState *PositionParticleFilter::Transition(ParticleState oldp) {
-	ParticleState & newp = *new ParticleState();
-
-	int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
-	int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
-
-	xn = std::max(0, std::min((int)img->_width-1, xn));
-	yn = std::max(0, std::min((int)img->_height-1, yn));
-
-	newp.height = oldp.height;
-	newp.width = oldp.width;
-	newp.histogram = oldp.histogram;
-
-	// make sure here that also old values are copied to the new particle, not done yet
-	assert(false);
-
-	dobots::pushpop(newp.x.begin(), newp.x.end(), xn);
-	dobots::pushpop(newp.y.begin(), newp.y.end(), yn);
-
-	return &newp;
-}
+//ParticleState *PositionParticleFilter::Transition(ParticleState oldp) {
+//	ParticleState & newp = *new ParticleState();
+//
+//	int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
+//	int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
+//
+//	xn = std::max(0, std::min((int)img->_width-1, xn));
+//	yn = std::max(0, std::min((int)img->_height-1, yn));
+//
+//	newp.height = oldp.height;
+//	newp.width = oldp.width;
+//	newp.histogram = oldp.histogram;
+//
+//	// make sure here that also old values are copied to the new particle, not done yet
+//	assert(false);
+//
+//	dobots::pushpop(newp.x.begin(), newp.x.end(), xn);
+//	dobots::pushpop(newp.y.begin(), newp.y.end(), yn);
+//
+//	return &newp;
+//}
 
 void PositionParticleFilter::doTransition(ParticleState &oldp) {
 
@@ -210,6 +211,44 @@ void PositionParticleFilter::Likelihood(RegionSize region_size) {
 	assert(false); // we don't calculate this (yet)
 }
 
+void PositionParticleFilter::GetLikelihoods(CImg<DataValue> & result, RegionSize region_size) {
+	assert (img != NULL);
+
+	cout << "Clean entire picture" << endl;
+	for (int i = 0; i < result._width; ++i) {
+		for (int j = 0; j < result._height; ++j) {
+			const DataValue color[] = { 255,255,255 };
+			result.draw_point(i,j,color);
+		}
+	}
+	cout << "Calculate likelihood for all pixels (except at distance \"width\" from border)" << endl;
+	cout << "  this ranges from " << region_size.width << " to " << result._width-region_size.width << " and ";
+	cout << "from " << region_size.height << " to " << result._height-region_size.height << endl;
+	ParticleState state;
+	state.height = region_size.height;
+	state.width = region_size.width;
+	cout << endl;
+	int block_size = 8;
+	for (int j = region_size.height; j < result._height-region_size.height; j=j+block_size) {
+		if (!(j%10)) cout << j << ':' << ' ';
+		for (int i = region_size.width; i < result._width-region_size.width; i=i+block_size) {
+			state.x.clear();
+			state.y.clear();
+			state.x.push_back(i);
+			state.y.push_back(j);
+			float value = Likelihood(state);
+			DataValue val = value*255;
+			if (!(j%10) && !(i%10)) cout << (int)val << ' ';
+			const DataValue color[] = { val,0,0 };
+//			result._data[i+j*state.width] = Likelihood(state);
+			//result.draw_point(i,j,color);
+			result.draw_rectangle(i-block_size/2,j-block_size/2,i+block_size/2,j+block_size/2,color);
+			if (!(j%10) && !(i%10)) cout << '+';
+		}
+		if (!(j%10)) cout << endl;
+	}
+}
+
 /**
  * Calculate the likelihood of a player and the state indicated by the parameter
  * "state" which contains an x and y position, a width and a height. This is used
@@ -228,14 +267,20 @@ float PositionParticleFilter::Likelihood(ParticleState & state) {
 	frames.push_back(data);
 
 	Histogram histogram(bins, img_selection._width, img_selection._height);
-	cout << "Add data for histograms" << endl;
+#ifdef VERBOSE
+	cout << __func__ << ": Add data for histograms" << endl;
+#endif
 	histogram.calcProbabilities(frames);
 
-	cout << "Get normalized probabilities" << endl;
+#ifdef VERBOSE
+	cout << __func__ << ": Get normalized probabilities" << endl;
+#endif
 	NormalizedHistogramValues result;
 	histogram.getProbabilities(result);
 
-	cout << "Calculate distance to histogram of the to-be-tracked object" << endl;
+#ifdef VERBOSE
+	cout << __func__ << ": Calculate distance to histogram of the to-be-tracked object" << endl;
+#endif
 	Value dist = dobots::distance<Value>(tracked_object_histogram, result, dobots::DM_HELLINGER);
 	return dist;
 }

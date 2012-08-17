@@ -30,7 +30,7 @@
  * **************************************************************************************/
 
 //! Adds a lot of extra checks, turn it off for performance (by setting it to 0)
-#define CAREFUL_USAGE 1
+#define CAREFUL_USAGE 0
 
 /* **************************************************************************************
  * Configuration option implementations

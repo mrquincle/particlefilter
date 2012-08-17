@@ -98,7 +98,7 @@ public:
 	 * Autoregressive model to estimate where an object will be next. See implementation
 	 * for the actual model used.
 	 */
-	ParticleState *Transition(ParticleState oldp);
+//	ParticleState *Transition(ParticleState oldp);
 
 	/**
 	 * Update particle itself
@@ -120,6 +120,11 @@ public:
 	 * on weight.
 	 */
 	void GetParticleCoordinates(std::vector<CImg<CoordValue> *> & coordinates);
+
+	/**
+	 * Return the likelihood of the histogram at all possible positions.
+	 */
+	void GetLikelihoods(CImg<DataValue> & result, RegionSize region_size);
 protected:
 
 	/**

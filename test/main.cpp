@@ -33,6 +33,7 @@
 #include <ImageSource.h>
 
 #include <testRegression.h>
+#include <testHistogram.h>
 #include <testFilter.h>
 #include <createTrackImage.h>
 
@@ -64,6 +65,8 @@ void getHistogram(CImg<T> &img, NormalizedHistogramValues & result) {
 	histogram.getProbabilities(result);
 }
 
+static int seed = 239483;
+
 /**
  * Showcase for a particle filter. It - for that reason - uses images, because it is easier
  * to tell what is going on using visuals. The user needs to select the thing to be tracked
@@ -81,6 +84,8 @@ int main() {
 
 	string path = "/home/anne/mydata/active_wheel_camera";
 	string extension = ".jpg";
+
+	srand48(seed);
 
 	source.SetPath(path);
 	source.SetExtension(extension);
@@ -106,40 +111,53 @@ int main() {
 	configfile.readInto(img_coords(3), "coord3");
 	configfile.readInto(img_coords(4), "coord4");
 
-	filter.Init(result, img_coords, 10);
+	int subticks = 1;
+	int particles = 100;
+	int shift = 4;
+	filter.Init(result, img_coords, particles);
 
 	vector <CImg<CoordValue>*> coordinates;
 
-	int frame_count = 25;
+	int frame_count = 40;
 	int frame_id = 0;
 	while (++frame_id < frame_count) {
 
-		CImg<DataValue> &img = *source.getImage<DataValue>();
+//		CImg<DataValue> &img = *source.getImage<DataValue>();
+		CImg<DataValue> &img = *source.getImageShifted<DataValue>(frame_id*shift, 0);
 
 		cout << "Clear coordinates" << endl;
 		coordinates.erase(coordinates.begin(), coordinates.end());
 		coordinates.clear();
 		filter.GetParticleCoordinates(coordinates);
 
+		CImg<DataValue> &img_copy = *new CImg<DataValue>(img);
+		int max = 10;
 		for (int i = 0; i < coordinates.size(); ++i) {
 			CImg<CoordValue>* coord = coordinates[i];
-			cout << "Draw rectangle at: [" << coord->_data[0] << "," << coord->_data[1] << "," << coord->_data[3] << "," << coord->_data[4] << "]" << endl;
+			//cout << "Draw rectangle at: [" << coord->_data[0] << "," << coord->_data[1] << "," << coord->_data[3] << "," << coord->_data[4] << "]" << endl;
 			float opacity = 0.05;
-//			img.draw_rectangle(coord->_data[0], coord->_data[1], coord->_data[3], coord->_data[4], red, opacity);
-			img.draw_line(coord->_data[0], coord->_data[1], coord->_data[0], coord->_data[4], red);
-			img.draw_line(coord->_data[0], coord->_data[1], coord->_data[3], coord->_data[1], red);
-			img.draw_line(coord->_data[3], coord->_data[1], coord->_data[3], coord->_data[4], red);
-			img.draw_line(coord->_data[0], coord->_data[4], coord->_data[3], coord->_data[4], red);
+			img_copy.draw_line(coord->_data[0], coord->_data[1], coord->_data[0], coord->_data[4], red);
+			img_copy.draw_line(coord->_data[0], coord->_data[1], coord->_data[3], coord->_data[1], red);
+			img_copy.draw_line(coord->_data[3], coord->_data[1], coord->_data[3], coord->_data[4], red);
+			img_copy.draw_line(coord->_data[0], coord->_data[4], coord->_data[3], coord->_data[4], red);
+			if (--max == 0) break;
 		}
 
-		CImgDisplay main_disp(img, "Show image");
+		CImgDisplay main_disp(img_copy, "Show image");
 
-		usleep(2000000);
+//		usleep(2000000);
 
-		cout << "One particle filter tick..." << endl;
+		main_disp.wait(2000);
+		if (main_disp.is_keyESC()) { // doesn't work, is not captured during wait (is usleep)
+			delete &img;
+			cout << "Escape by user, exit" << endl;
+			break;
+		}
 
-		filter.Tick(&img);
+		cout << "Particle filter tick " << frame_id << endl;
+		filter.Tick(&img, subticks);
 
+#ifdef DISPLAY_LIKELIHOOD
 		cout << "Calculate likelihood for all pixels" << endl;
 		RegionSize region;
 		region.width = img_coords(3)-img_coords(0);
@@ -152,10 +170,10 @@ int main() {
 		CImgDisplay disp(img2, "Show values");
 
 		usleep(4000000);
-
+		delete &img2;
+#endif
 
 		delete &img;
-		delete &img2;
 	}
 
 	delete &track_img;

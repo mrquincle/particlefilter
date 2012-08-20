@@ -48,6 +48,16 @@
 #define QUIT_ON_ERROR_VAL(RETURN) { return (RETURN); }
 #endif
 
+#define ASSERT_EQUAL(EXPRESSION_A, EXPRESSION_B) \
+	if ((EXPRESSION_A) != (EXPRESSION_B)) \
+			std::cerr << __func__ << ": Assert error " << EXPRESSION_A << " != " << EXPRESSION_B << std::endl; \
+	assert((EXPRESSION_A) == (EXPRESSION_B));
+
+#define ASSERT_TRUE(EXPRESSION, MESSAGE) \
+	if (!EXPRESSION) \
+			std::cerr << __func__ << ": Assert error " << MESSAGE << std::endl; \
+	assert(EXPRESSION);
+
 /* **************************************************************************************
  * Configuration option includes
  * **************************************************************************************/

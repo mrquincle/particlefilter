@@ -46,6 +46,12 @@ Histogram::Histogram(int bins, int width, int height): ProbMatrix(bins, width, h
  */
 Histogram::~Histogram() {
 	Clear();
+	bins = 0;
+	p_width = 0;
+	p_height = 0;
+	bins_squared = 0;
+	p_size = 0;
+	frame_count = 0;
 }
 
 /**
@@ -86,9 +92,10 @@ void Histogram::calcProbabilities(DataFrames & frames) {
 	// Delete previous matrices
 	Clear();
 
-	// Create probability matrix (and show its size to the user)
-	int kB = (bins * p_size) >> 8; float MB = kB / (float)1024; int mb = MB * 100; MB = mb / (float)100;
+	// Create probability matrix
 #ifdef VERBOSE
+	// Show size to the user
+	int kB = (bins * p_size) >> 8; float MB = kB / (float)1024; int mb = MB * 100; MB = mb / (float)100;
 	cout << __func__ << ": Create probability matrix of size " << bins << "x" << p_size << " (size = " << MB << "MB)" << endl;
 #endif
 	freq = new HistogramValue[bins * p_size];
@@ -201,6 +208,18 @@ void Histogram::getFrequencies(vector<HistogramValue> &bin_result) {
 		}
 		bin_result.push_back(f);
 	}
+}
+
+int Histogram::getSamples() {
+	CHECK_FRAMECOUNT;
+	CHECK_FREQ;
+	int f = 0;
+	for (int b = 0; b < bins; ++b) {
+		for (int p = 0; p < p_size; ++p) {
+			f += freq[p*bins+b];
+		}
+	}
+	return f;
 }
 
 void Histogram::getProbabilities(vector<Value> &bin_result) {

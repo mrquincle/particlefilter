@@ -88,6 +88,11 @@ public:
 		this->weight = weight;
 	}
 
+	~Particle() {
+		weight = 0;
+		delete state;
+	}
+
 	inline State* getState() { return state; }
 
 	inline double getWeight() { return weight; }
@@ -95,6 +100,35 @@ public:
 	inline void setState(State* state) { this->state = state; }
 
 	inline void setWeight(double weight) { this->weight = weight; }
+
+	Particle *clone() {
+//		std::cout << __func__ << ": Construct particle from another using copy constructor "<< std::endl;
+		State *s = new State(*state);
+		Particle *p = new Particle(s, 0);
+		return p;
+	}
+
+#ifdef WORKS
+	void swap(Particle &p) {
+		std::swap(state, p.state);
+		std::swap(weight, p.weight);
+	}
+
+	Particle & operator=(Particle other) {
+		std::cout << __func__ << ": Create particle from another using swap " << std::endl;
+		swap(other);
+		return *this;
+	}
+#endif
+	Particle & operator=(const Particle & other) {
+		if (this != &other) {
+			std::cout << __func__ << ": Create particle from another using swap " << std::endl;
+			state = other.state;
+			weight = other.weight;
+		}
+		return *this;
+	}
+
 private:
 	State *state;
 	double weight;
@@ -111,6 +145,7 @@ private:
 		return is;
 	}
 };
+
 
 /**
  * Helper function for sorting (with highest weight first)
@@ -242,10 +277,11 @@ public:
 		for (int i = 0; i < N; ++i) {
 			int copies = round(set.particles[i]->getWeight() * N);
 			for (int j = 0; j < copies; ++j) {
-				set.particles.push_back(set.particles[i]);
+				Particle<State> *newp = set.particles[i]->clone();
+				set.particles.push_back(newp);
 				newN++;
 				if (newN == N) {
-					// now remove first half of it
+					// now remove old items
 					set.particles.erase(set.particles.begin(), set.particles.begin()+N);
 					assert ( set.particles.size() == newN);
 					return;
@@ -254,7 +290,8 @@ public:
 		}
 		while (newN < N) {
 			// duplicate particle with highest weight to get exactly same number again
-			set.particles.push_back(set.particles[0]);
+			Particle<State> *newp = set.particles[0]->clone();
+			set.particles.push_back(newp);
 			newN++;
 		}
 		set.particles.erase(set.particles.begin(), set.particles.begin()+N);
@@ -272,10 +309,11 @@ public:
 protected:
 	//! Hand over access to particles to subclasses
 	std::vector<Particle<State>* >& getParticles() { return set.particles; }
-private:
 
 	//! Called "N" in the literature
-	int particle_count;
+//	int particle_count;
+
+private:
 
 	//! The actual cloud of particles
 	ParticleSet<State> set;

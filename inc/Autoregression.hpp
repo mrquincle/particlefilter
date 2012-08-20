@@ -67,12 +67,14 @@ inline T predict(InputIterator1 first1, InputIterator1 last1,
 	//	assert (container.size() == coefficients.size());
 	static boost::mt19937 random_number_generator(autoregression_seed);
 	boost::normal_distribution<> normal_dist(0.0, variance);
-	boost::variate_generator<boost::mt19937&, boost::normal_distribution<> >
-	epsilon(random_number_generator, normal_dist);
+	boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > epsilon(
+			random_number_generator, normal_dist);
 
 	T sum = std::inner_product(first1, last1, first2, T(0));
 	T prediction = constant + sum + epsilon();
-//	std::cout << "Prediction is " << prediction << std::endl;
+#ifdef VERBOSE
+	std::cout << __func__ << ": result is " << prediction << std::endl;
+#endif
 	return prediction;
 }
 

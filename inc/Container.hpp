@@ -60,6 +60,10 @@ namespace dobots {
  * function does really calculate a distance between two containers, say two vectors, and is not
  * the std::distance function that just returns the distance between elements with respect to a
  * given iterator.
+ *
+ * Only metrics are defined (for now) that do not require additional information. For example, the
+ * Mahalanobis distance requires the correlations between the variables as input (either by including
+ * standard deviations, or the covariance matrix in the general case).
  */
 enum DistanceMetric {
 	DM_EUCLIDEAN,
@@ -68,6 +72,8 @@ enum DistanceMetric {
 	DM_HELLINGER,
 	DM_MANHATTAN,
 	DM_CHEBYSHEV,
+	DM_BATTACHARYYA_COEFFICIENT,
+	DM_SQUARED_HELLINGER,
 	DM_TYPES };
 
 /**
@@ -216,6 +222,10 @@ T distance(const DATACONTAINER & container0, const DATACONTAINER & container1, D
 		return std::inner_product(container0.begin(), container0.end(), container1.begin(), T(0), max<T>(), taxicab<T>);
 	case DM_MANHATTAN:
 		return std::inner_product(container0.begin(), container0.end(), container1.begin(), T(0), std::plus<T>(), taxicab<T>);
+	case DM_BATTACHARYYA_COEFFICIENT:
+		return std::inner_product(container0.begin(), container0.end(), container1.begin(), T(0), std::plus<T>(), battacharyya<T>);
+	case DM_SQUARED_HELLINGER:
+		return 	std::inner_product(container0.begin(), container0.end(), container1.begin(), T(0), std::plus<T>(), hellinger<T>) * T(1)/T(2);
 	default:
 		std::cerr << "Unknown distance metric" << std::endl;
 		return -1;

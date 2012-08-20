@@ -30,29 +30,32 @@ using namespace std;
 
 void test_histogram() {
 	cout << " === start test histogram === " << endl;
-	int size = 10;
-	int bins = 4;
-	Histogram histogram(bins, size, 1);
 
-	DataFrames frames;
-	int nof_frames = 1;
-	for (int f = 0; f < nof_frames; ++f) {
-		pDataMatrix data = new DataValue[size];
-		for (int i = 0; i < size; ++i) {
-			data[i] = 40 * ((i % 2) + 1); // set values 40 or 80
+	for (int i = 0; i < 2; ++i) {
+		int size = 10;
+		int bins = 4;
+		Histogram histogram(bins, size, 1);
+
+		DataFrames frames;
+		int nof_frames = 1;
+		for (int f = 0; f < nof_frames; ++f) {
+			pDataMatrix data = new DataValue[size];
+			for (int i = 0; i < size; ++i) {
+				data[i] = 40 * ((i % 2) + 1); // set values 40 or 80
+			}
+			frames.push_back(data);
 		}
-		frames.push_back(data);
+
+		histogram.calcProbabilities(frames);
+
+		std::vector<Value> result;
+		histogram.getProbabilities(result);
+
+		cout << "Result: ";
+		for (int i = 0; i < result.size(); ++i) {
+			cout << result[i] << ' ';
+		}
+		cout << endl;
 	}
-
-	histogram.calcProbabilities(frames);
-
-	std::vector<Value> result;
-	histogram.getProbabilities(result);
-
-	cout << "Result: ";
-	for (int i = 0; i < result.size(); ++i) {
-		cout << result[i] << ' ';
-	}
-	cout << endl;
 	cout << " === end test histogram === " << endl;
 }

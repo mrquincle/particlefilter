@@ -24,6 +24,8 @@
 
 using namespace dobots;
 
+#include <Print.hpp>
+
 /* **************************************************************************************
  * Implementation of PositionParticleFilter
  * **************************************************************************************/
@@ -47,15 +49,20 @@ PositionParticleFilter::~PositionParticleFilter() {
  * - transition according to a certain motion model
  * - observing the likelihood of the object being at the translated position (results in a weight)
  * - resample according to that likelihood (given by the weight)
+ * @param img_frame			the image with the entitie(s) to be tracked
+ * @param subticks			the number of times this same image needs to be used
  */
-void PositionParticleFilter::Tick(CImg<DataValue> *img_frame)  {
+void PositionParticleFilter::Tick(CImg<DataValue> *img_frame, int subticks)  {
 	img = img_frame;
-	cout << "Transition all particles" << endl;
-	Transition();
-	cout << "Likelihood for all particles" << endl;
-	Likelihood();
-	cout << "Resample all particles" << endl;
-	Resample();
+	assert (subticks > 0);
+	for (int i = 0; i < subticks; ++i) {
+		cout << "Transition all particles" << endl;
+		Transition();
+		cout << "Likelihood for all particles" << endl;
+		Likelihood();
+		cout << "Resample all particles" << endl;
+		Resample();
+	}
 }
 
 /**
@@ -71,26 +78,28 @@ void PositionParticleFilter::Init(NormalizedHistogramValues &tracked_object_hist
 
 	cout << "Width*height=" << width << '*' << height << endl;
 
+	this->tracked_object_histogram = tracked_object_histogram;
+
 	// generate duplicates of particles
 	for (int i = 0; i < particle_count; ++i) {
 
-		this->tracked_object_histogram = tracked_object_histogram;
-		Particle<ParticleState> *p  = new Particle<ParticleState>();
-		ParticleState *s = p->getState();
+		ParticleState *s = new ParticleState(i+1);
 		s->width = width;
 		s->height = height;
 		s->x.clear();
 		s->y.clear();
 		int history_size = 2;
-		for (int i = 0; i < history_size; ++i) {
+		for (int j = 0; j < history_size; ++j) {
 			s->x.push_back(coord(0) + width / 2);
 			s->y.push_back(coord(1) + height / 2);
+			s->scale.push_back(1);
 		}
+		Particle<ParticleState> *p  = new Particle<ParticleState>(s, 0);
 		//	s. scale/ histogram
 		getParticles().push_back(p);
 	}
 
-	assert (getParticles().size() == particle_count);
+	ASSERT_EQUAL(getParticles().size(), particle_count);
 }
 
 /**
@@ -103,8 +112,10 @@ void PositionParticleFilter::Transition() {
 	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
 		ParticleState *state = (*i)->getState();
 		assert (state != NULL);
-		doTransition(*state);
+		Transition(*state);
 	}
+
+//	ASSERT_EQUAL(getParticles().size(), particle_count);
 }
 
 void PositionParticleFilter::Likelihood() {
@@ -112,11 +123,27 @@ void PositionParticleFilter::Likelihood() {
 	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
 		ParticleState *state = (*i)->getState();
 		assert (state != NULL);
-		float weight = Likelihood(*state);
-		(*i)->setWeight(weight);
+		state->likelihood = Likelihood(*state);
+		(*i)->setWeight(state->likelihood);
 	}
+
+	// log for the user
+	std::sort(getParticles().begin(), getParticles().end(), comp_particles<ParticleState>);
+	int max = 10;
+	cout << "Likelihoods: ";
+	for (i = getParticles().begin(); i != getParticles().end(); ++i) {
+		ParticleState *state = (*i)->getState();
+		cout << '[' << state->getId() << ':' << state->likelihood << "] ";
+		if (--max == 0) break;
+	}
+	cout << endl;
+
+//	ASSERT_EQUAL(getParticles().size(), particle_count);
 }
 
+/**
+ * Return the particle coordinates for display.
+ */
 void PositionParticleFilter::GetParticleCoordinates(std::vector<CImg<CoordValue> *> & coordinates) {
 	// sort to make sure the one with highest weight comes first
 	std::sort(getParticles().begin(), getParticles().end(), comp_particles<ParticleState>);
@@ -126,12 +153,17 @@ void PositionParticleFilter::GetParticleCoordinates(std::vector<CImg<CoordValue>
 		CImg<CoordValue> *coord = new CImg<CoordValue>(6);
 		ParticleState *state = (*i)->getState();
 		assert (state != NULL);
+		assert (state->getId());
+		std::string msg; msg = "state is empty " + state->getId();
+		if(state->x.empty()) cout << msg << endl;
 		assert (!state->x.empty());
 		assert (!state->y.empty());
+		assert (!state->scale.empty());
 		float x = state->x.front();
 		float y = state->y.front();
-		float width = state->width;
-		float height = state->height;
+		float scale = state->scale.front();
+		float width = state->width * scale;
+		float height = state->height * scale;
 		coord->_data[0] = x-width/2;
 		coord->_data[1] = y-height/2;
 		coord->_data[3] = x+width/2;
@@ -165,53 +197,54 @@ void PositionParticleFilter::GetParticleCoordinates(std::vector<CImg<CoordValue>
  * I opt for the second formulation (auto_coeff[0] = 2, auto_coeff[1] = -1).
  *
  */
-//ParticleState *PositionParticleFilter::Transition(ParticleState oldp) {
-//	ParticleState & newp = *new ParticleState();
-//
-//	int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
-//	int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
-//
-//	xn = std::max(0, std::min((int)img->_width-1, xn));
-//	yn = std::max(0, std::min((int)img->_height-1, yn));
-//
-//	newp.height = oldp.height;
-//	newp.width = oldp.width;
-//	newp.histogram = oldp.histogram;
-//
-//	// make sure here that also old values are copied to the new particle, not done yet
-//	assert(false);
-//
-//	dobots::pushpop(newp.x.begin(), newp.x.end(), xn);
-//	dobots::pushpop(newp.y.begin(), newp.y.end(), yn);
-//
-//	return &newp;
-//}
+void PositionParticleFilter::Transition(ParticleState &oldp) {
 
-void PositionParticleFilter::doTransition(ParticleState &oldp) {
+//#define OVERWRITE
 
-	cout << "Transition particle from [" << oldp.x.front() << "," << oldp.y.front() << "]" << endl;
-
-	int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0);
-	int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0);
+	int xn = dobots::predict(oldp.x.begin(), oldp.x.end(), auto_coeff.begin(), 0.0, 1.0);
+	int yn = dobots::predict(oldp.y.begin(), oldp.y.end(), auto_coeff.begin(), 0.0, 1.0);
+	Value scale = dobots::predict(oldp.scale.begin(), oldp.scale.end(), auto_coeff.begin(), 0.0, 0.001);
 
 	xn = std::max(0, std::min((int)img->_width-1, xn));
 	yn = std::max(0, std::min((int)img->_height-1, yn));
+	scale = std::max<Value>(0.1, scale); // scale should not fall below 0.1..
 
-	cout << "Transition particle towards [" << xn << "," << yn << "]" << endl;
+#ifdef OVERWRITE
+	xn = oldp.x[0];
+	yn = oldp.y[0];
+	scale = oldp.scale[0];
+
+//	static boost::mt19937 random_number_generator(autoregression_seed);
+//	boost::normal_distribution<> normal_dist(0.0, 1);
+//	boost::variate_generator<boost::mt19937&, boost::normal_distribution<> > epsilon(
+//			random_number_generator, normal_dist);
+
+//	float p = drand48();
+
+	xn += (drand48() * 4 - 2); //epsilon();
+	yn += (drand48() * 4 - 2); //epsilon();
+
+#endif
+	scale = 1.0;
 
 	dobots::pushpop(oldp.x.begin(), oldp.x.end(), xn);
 	dobots::pushpop(oldp.y.begin(), oldp.y.end(), yn);
+	dobots::pushpop(oldp.scale.begin(), oldp.scale.end(), scale);
+
+//	cout << "Transition particle " << oldp << endl;
 }
 
 /**
- * The likelihood of a player at all locations in the image using a given region size.
+ * The likelihood of a player at all locations in the image using a given region size. The result is
+ * written back in the form of a picture with colour values.
+ * This function takes VERY long if every pixel would have been considered, hence, a block_size
+ * parameter exists which only calculates the probability around blocks of this given size.
+ * @param result		image with red colour indicating the likelihood, the more black, the likelier
+ * @param region_size	the rectangle over which to match the histograms
+ * @param block_size	(optional) parameter for subsampling
+ * @return				void
  */
-void PositionParticleFilter::Likelihood(RegionSize region_size) {
-	// for every particle calculate likelihood and "calculate" weight
-	assert(false); // we don't calculate this (yet)
-}
-
-void PositionParticleFilter::GetLikelihoods(CImg<DataValue> & result, RegionSize region_size) {
+void PositionParticleFilter::GetLikelihoods(CImg<DataValue> & result, RegionSize region_size, 	int block_size) {
 	assert (img != NULL);
 
 	cout << "Clean entire picture" << endl;
@@ -224,13 +257,15 @@ void PositionParticleFilter::GetLikelihoods(CImg<DataValue> & result, RegionSize
 	cout << "Calculate likelihood for all pixels (except at distance \"width\" from border)" << endl;
 	cout << "  this ranges from " << region_size.width << " to " << result._width-region_size.width << " and ";
 	cout << "from " << region_size.height << " to " << result._height-region_size.height << endl;
+
 	ParticleState state;
 	state.height = region_size.height;
 	state.width = region_size.width;
-	cout << endl;
-	int block_size = 8;
+
+	bool show_progress = true;
+	if (show_progress) cout << endl;
 	for (int j = region_size.height; j < result._height-region_size.height; j=j+block_size) {
-		if (!(j%10)) cout << j << ':' << ' ';
+		if (show_progress) if (!(j%10)) cout << j << ':' << ' ';
 		for (int i = region_size.width; i < result._width-region_size.width; i=i+block_size) {
 			state.x.clear();
 			state.y.clear();
@@ -238,16 +273,16 @@ void PositionParticleFilter::GetLikelihoods(CImg<DataValue> & result, RegionSize
 			state.y.push_back(j);
 			float value = Likelihood(state);
 			DataValue val = value*255;
-			if (!(j%10) && !(i%10)) cout << (int)val << ' ';
+			if (show_progress) if (!(j%10) && !(i%10)) cout << (int)val << ' ';
 			const DataValue color[] = { val,0,0 };
-//			result._data[i+j*state.width] = Likelihood(state);
-			//result.draw_point(i,j,color);
 			result.draw_rectangle(i-block_size/2,j-block_size/2,i+block_size/2,j+block_size/2,color);
-			if (!(j%10) && !(i%10)) cout << '+';
+			if (show_progress) if (!(j%10) && !(i%10)) cout << '+';
 		}
-		if (!(j%10)) cout << endl;
+		if (show_progress) if (!(j%10)) cout << endl;
 	}
 }
+
+static int save_index = 0;
 
 /**
  * Calculate the likelihood of a player and the state indicated by the parameter
@@ -259,8 +294,14 @@ void PositionParticleFilter::GetLikelihoods(CImg<DataValue> & result, RegionSize
  */
 float PositionParticleFilter::Likelihood(ParticleState & state) {
 	assert (img != NULL);
-	CImg <DataValue> img_selection = img->get_crop(
-			state.x[0]-state.width/2,state.y[0]-state.height/2,state.x[0]+state.width/2,state.y[0]+state.height/2);
+	CImg <CoordValue> coord(6);
+	float scale = state.scale.front();
+	scale = 1;
+	coord._data[0] = state.x[0] - scale * state.width/2;
+	coord._data[1] = state.y[0] - scale * state.height/2;
+	coord._data[3] = state.x[0] + scale * state.width/2;
+	coord._data[4] = state.y[0] + scale * state.height/2;
+	CImg <DataValue> img_selection = img->get_crop(coord._data[0], coord._data[1], coord._data[3], coord._data[4]);
 	DataFrames frames;
 	frames.clear();
 	pDataMatrix data = img_selection._data;
@@ -270,6 +311,7 @@ float PositionParticleFilter::Likelihood(ParticleState & state) {
 #ifdef VERBOSE
 	cout << __func__ << ": Add data for histograms" << endl;
 #endif
+	assert (frames.size() == 1);
 	histogram.calcProbabilities(frames);
 
 #ifdef VERBOSE
@@ -281,6 +323,38 @@ float PositionParticleFilter::Likelihood(ParticleState & state) {
 #ifdef VERBOSE
 	cout << __func__ << ": Calculate distance to histogram of the to-be-tracked object" << endl;
 #endif
-	Value dist = dobots::distance<Value>(tracked_object_histogram, result, dobots::DM_HELLINGER);
-	return dist;
+
+//	if ((state.x[0] == 281 && state.y[0] == 278)) {
+//		HistogramValues hist;
+//		histogram.getFrequencies(hist);
+//		cout << "Histogram result for " << state << " ";
+//		print (hist.begin(), hist.end());
+//		cout << "Total # of samples: " << histogram.getSamples() << endl;
+//		stringstream s; s.clear(); s.str("");
+//		s << "img" << ++save_index << ".jpeg";
+//		img_selection._save_jpeg(NULL, s.str().c_str(), 100);
+//	}
+	Value dist = dobots::distance<Value>(tracked_object_histogram, result, dobots::DM_SQUARED_HELLINGER);
+//	if ((state.x[0] == 281 && state.y[0] == 278)) {
+//		cout << "Distance: " << dist << endl;
+//	}
+	return std::exp(-20.0 * dist);
 }
+
+
+//void swap(ParticleState &dest, ParticleState &source) {
+//	cout << "Source contains:";
+//	print(source.x.begin(), source.x.end());
+//
+//	cout << "Destination contains:";
+//	print(dest.x.begin(), dest.x.end());
+//
+//	cout << "Swap from source to dest" << endl;
+//	std::swap(dest.x, source.x);
+//	std::swap(dest.y, source.y);
+//	std::swap(dest.scale, source.scale);
+//	std::swap(dest.id, source.id);
+//	std::swap(dest.height, source.height);
+//	std::swap(dest.width, source.width);
+//	cout << "Done swapping" << endl;
+//}

@@ -28,6 +28,7 @@
 #include <CImg.h>
 #include <string>
 #include <vector>
+#include <cassert>
 
 /* **************************************************************************************
  * Interface of ImageSource
@@ -66,6 +67,14 @@ public:
 	cimg_library::CImg<T>* getImage(std::string file) {
 		file = path + '/' + file;
 		cimg_library::CImg<T> *img = new cimg_library::CImg<T>(file.c_str());
+		return img;
+	}
+
+	template <typename T>
+	cimg_library::CImg<T>* getImageShifted(int shift_x, int shift_y) {
+		assert (!filenames.empty());
+		cimg_library::CImg<T> *img = getImage<T>(filenames.front());
+		img->shift(shift_x, shift_y, 0, 0, 2);
 		return img;
 	}
 

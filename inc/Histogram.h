@@ -103,6 +103,9 @@ public:
 	 */
 	void getFrequencies(HistogramValues &bin_result);
 
+	//! Get total number of samples that are recorded
+	int getSamples();
+
 	/**
 	 * Exactly the same as getFrequencies, but now normalised with the sum of all events.
 	 */

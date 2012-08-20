@@ -32,32 +32,152 @@
 #include <Container.hpp>
 #include <Autoregression.hpp>
 
+#include <algorithm>
 #include <cassert>
 
 using namespace cimg_library;
 using namespace std;
 
-//! An unsigned char would not be enough for a resolution greater than 256x256
+//! An "unsigned char" is not be enough for resolution larger than 256x256, so we go for an "int"
 typedef int CoordValue;
 
+/**
+ * Just the extend of a region, not its location.
+ */
 struct RegionSize {
 	int width;
 	int height;
 };
 
-struct ParticleState {
+static int ParticleStateId = 0;
+
+/**
+ * The particle's state is just a rectangular region, and is defined over a few time steps.
+ */
+class ParticleState {
+public:
+	ParticleState() {
+		id = ++ParticleStateId;
+		x.clear();
+		y.clear();
+		scale.clear();
+		likelihood = 0;
+		width = 0;
+		height = 0;
+	}
+
+	ParticleState(int id): id(id) {
+		x.clear();
+		y.clear();
+		scale.clear();
+		likelihood = 0;
+		width = 0;
+		height = 0;
+	}
+
+	~ParticleState() {
+		x.clear();
+		y.clear();
+		scale.clear();
+	}
+
+	//! The (default) width of the rectangular region
 	int width;
+	//! The (default) height of the rectangular region
 	int height;
-	int histogram;
 
+	//! The histogram corresponding to a particle
+	//	int histogram;
+	Value likelihood;
+
+	//! The x-vector denotes the horizontal centre of a rectangular region and its history
 	std::vector<Value> x;
+	//! The y-vector denotes the vertical centre of a rectangular region and its history
 	std::vector<Value> y;
+	//! A floating point value that scales width and height
+	std::vector<Value> scale;
 
+	//! Easy printing
 	friend std::ostream& operator<<(std::ostream& os, const ParticleState & ps) {
-		os << '[' << ps.width << ',' << ps.height << ']';
+		if ((ps.x.size() == 1) && (ps.y.size() == 1)) {
+			os << ps.id << " [" << ps.x.front() << ',' << ps.y.front() << "] (" << ps.likelihood << ")";
+		} else if (ps.x.size() > 1 && ps.y.size() > 1) {
+			// use history at position [1]
+			os << ps.id << " [" << ps.x[1] << ',' << ps.y[1] << "] -> [" << ps.x[0] << ',' << ps.y[0] << "] (" << ps.likelihood << ")";
+		} else {
+			os << ps.id << " []";
+		}
 		return os;
 	}
+
+	ParticleState(const ParticleState & other): x(other.x.size()),
+			y(other.y.size()), scale(other.scale.size()) {
+//		cout << __func__ << ": Create particle from particle " << other.id << " using copy constructor" << endl;
+		x.clear();
+		y.clear();
+		scale.clear();
+
+		// needs to be different
+//		id = ++ParticleStateId;
+		id = other.id;
+		width = other.width;
+		height = other.height;
+		likelihood = other.likelihood;
+
+		//			histogram  = ps.histogram;
+#ifdef WHYDOESCOPYNOTWORKHERE
+		std::copy(other.x.begin(), other.x.end(), x.begin());
+		std::copy(other.y.begin(), other.y.end(), y.begin());
+		std::copy(other.scale.begin(), other.scale.end(), scale.begin());
+#endif
+		for (int i = 0; i < other.x.size(); ++i) x.push_back(other.x[i]);
+		for (int i = 0; i < other.y.size(); ++i) y.push_back(other.y[i]);
+		for (int i = 0; i < other.scale.size(); ++i) scale.push_back(other.scale[i]);
+//		cout << "Done with construction of " << id << endl;
+
+		assert (!other.x.empty());
+		ASSERT_EQUAL(x.size(), other.x.size());
+	}
+
+#ifdef WORKS
+
+	// Use the swap idiom to define an assignment operator
+	ParticleState & operator=(ParticleState other) {
+		cout << "Create particle from particle " << other.id << " using swap" << endl;
+		swap(*this, other);
+		id = ++ParticleStateId; // adjust id
+		cout << "Created particle with id " << id << endl;
+		return *this;
+	}
+#endif
+	ParticleState & operator=(const ParticleState & other) {
+		if (this != &other) {
+//			cout << "Create particle from particle " << other.id << " using =" << endl;
+			x.clear();
+			y.clear();
+			scale.clear();
+			width = other.width;
+			height = other.height;
+			likelihood = other.likelihood;
+			for (int i = 0; i < other.x.size(); ++i) x.push_back(other.x[i]);
+			for (int i = 0; i < other.y.size(); ++i) y.push_back(other.y[i]);
+			for (int i = 0; i < other.y.size(); ++i) scale.push_back(other.scale[i]);
+			id = other.id; // ++ParticleStateId; // adjust id
+//			cout << "Created particle with id " << id << endl;
+			assert (!other.x.empty());
+			ASSERT_EQUAL(x.size(), other.x.size());
+		}
+		return *this;
+	}
+
+	inline const int getId() { return id; }
+
+//	friend void swap(ParticleState &dest, ParticleState &source);
+private:
+	//! Mainly for debugging reasons, make sure we actually make copies at the right moment, etc.
+	int id;
 };
+
 
 /* **************************************************************************************
  * Interface of PositionParticleFilter
@@ -79,7 +199,7 @@ public:
 	 * Set image and calculate everything necessary... Provide multiple times the same frame
 	 * if that is required.
 	 */
-	void Tick(CImg<DataValue> *img_frame);
+	void Tick(CImg<DataValue> *img_frame, int subticks = 1);
 
 	/**
 	 * Initialize particle cloud.
@@ -98,17 +218,7 @@ public:
 	 * Autoregressive model to estimate where an object will be next. See implementation
 	 * for the actual model used.
 	 */
-//	ParticleState *Transition(ParticleState oldp);
-
-	/**
-	 * Update particle itself
-	 */
-	void doTransition(ParticleState &oldp);
-
-	/**
-	 * The likelihood of a player at all locations in the image using a given region size.
-	 */
-	void Likelihood(RegionSize region_size);
+	void Transition(ParticleState &oldp);
 
 	/**
 	 * Calculate likelihood of all particles
@@ -124,7 +234,7 @@ public:
 	/**
 	 * Return the likelihood of the histogram at all possible positions.
 	 */
-	void GetLikelihoods(CImg<DataValue> & result, RegionSize region_size);
+	void GetLikelihoods(CImg<DataValue> & result, RegionSize region_size, int block_size = 8);
 protected:
 
 	/**
@@ -145,7 +255,7 @@ private:
 	NormalizedHistogramValues tracked_object_histogram;
 
 	//! Image data
-	pDataMatrix data;
+//	pDataMatrix data;
 
 	//! Image to get data from
 	CImg<DataValue> * img;

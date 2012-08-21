@@ -99,7 +99,13 @@ void rotate(InputIterator first, InputIterator last, RotateDirection direction =
 }
 
 /**
- * Pushes an item upon a container and pops off the oldest value.
+ * Pushes an item upon a container and pops off the oldest value. In case the container is build
+ * up out of pointers to objects, make sure you delete the item yourself.
+ *
+ * @param first			iterator to the beginning of the container
+ * @param last			iterator to the end of the container
+ * @param item			the item to be added to the container
+ * @param direction		the direction in which to push and pop (left or right)
  */
 template<typename InputIterator, typename T>
 void pushpop(InputIterator first, InputIterator last, T item, RotateDirection direction = RD_RIGHT) {

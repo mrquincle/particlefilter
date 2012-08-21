@@ -110,69 +110,28 @@ public:
 		return os;
 	}
 
+	/**
+	 * A copy instructor for ParticleState. Somehow we have to build up the vectors from
+	 * scratch and cannot use std::copy.
+	 */
 	ParticleState(const ParticleState & other): x(other.x.size()),
 			y(other.y.size()), scale(other.scale.size()) {
-//		cout << __func__ << ": Create particle from particle " << other.id << " using copy constructor" << endl;
-		x.clear();
-		y.clear();
-		scale.clear();
-
-		// needs to be different
-//		id = ++ParticleStateId;
 		id = other.id;
 		width = other.width;
 		height = other.height;
 		likelihood = other.likelihood;
 
-		//			histogram  = ps.histogram;
-#ifdef WHYDOESCOPYNOTWORKHERE
-		std::copy(other.x.begin(), other.x.end(), x.begin());
-		std::copy(other.y.begin(), other.y.end(), y.begin());
-		std::copy(other.scale.begin(), other.scale.end(), scale.begin());
-#endif
+		x.clear(); y.clear(); scale.clear();
 		for (int i = 0; i < other.x.size(); ++i) x.push_back(other.x[i]);
 		for (int i = 0; i < other.y.size(); ++i) y.push_back(other.y[i]);
 		for (int i = 0; i < other.scale.size(); ++i) scale.push_back(other.scale[i]);
-//		cout << "Done with construction of " << id << endl;
 
 		assert (!other.x.empty());
 		ASSERT_EQUAL(x.size(), other.x.size());
 	}
 
-#ifdef WORKS
-
-	// Use the swap idiom to define an assignment operator
-	ParticleState & operator=(ParticleState other) {
-		cout << "Create particle from particle " << other.id << " using swap" << endl;
-		swap(*this, other);
-		id = ++ParticleStateId; // adjust id
-		cout << "Created particle with id " << id << endl;
-		return *this;
-	}
-#endif
-	ParticleState & operator=(const ParticleState & other) {
-		if (this != &other) {
-//			cout << "Create particle from particle " << other.id << " using =" << endl;
-			x.clear();
-			y.clear();
-			scale.clear();
-			width = other.width;
-			height = other.height;
-			likelihood = other.likelihood;
-			for (int i = 0; i < other.x.size(); ++i) x.push_back(other.x[i]);
-			for (int i = 0; i < other.y.size(); ++i) y.push_back(other.y[i]);
-			for (int i = 0; i < other.y.size(); ++i) scale.push_back(other.scale[i]);
-			id = other.id; // ++ParticleStateId; // adjust id
-//			cout << "Created particle with id " << id << endl;
-			assert (!other.x.empty());
-			ASSERT_EQUAL(x.size(), other.x.size());
-		}
-		return *this;
-	}
-
 	inline const int getId() { return id; }
 
-//	friend void swap(ParticleState &dest, ParticleState &source);
 private:
 	//! Mainly for debugging reasons, make sure we actually make copies at the right moment, etc.
 	int id;

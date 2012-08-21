@@ -101,8 +101,11 @@ public:
 
 	inline void setWeight(double weight) { this->weight = weight; }
 
+	/**
+	 * The clone function should not be really necessary, by implementing an assignment operator, a
+	 * copy constructor, and a swap function. However, I couldn't get it made to work.
+	 */
 	Particle *clone() {
-//		std::cout << __func__ << ": Construct particle from another using copy constructor "<< std::endl;
 		State *s = new State(*state);
 		Particle *p = new Particle(s, 0);
 		return p;
@@ -120,14 +123,6 @@ public:
 		return *this;
 	}
 #endif
-	Particle & operator=(const Particle & other) {
-		if (this != &other) {
-			std::cout << __func__ << ": Create particle from another using swap " << std::endl;
-			state = other.state;
-			weight = other.weight;
-		}
-		return *this;
-	}
 
 private:
 	State *state;
@@ -265,7 +260,6 @@ public:
 
 	//! Destructor ~ParticleFilter
 	virtual ~ParticleFilter() {}
-//protected:
 
 	//! The actual smart part of the particle filter
 	void Resample() {
@@ -309,9 +303,6 @@ public:
 protected:
 	//! Hand over access to particles to subclasses
 	std::vector<Particle<State>* >& getParticles() { return set.particles; }
-
-	//! Called "N" in the literature
-//	int particle_count;
 
 private:
 

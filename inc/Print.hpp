@@ -43,14 +43,18 @@ namespace dobots {
  * @param endl			Printing a new line at the end of the output or not.
  */
 template<typename InputIterator>
-void print(InputIterator first, InputIterator last, std::string delim=", ", std::string empty="[]", bool endl=true)
+void print(InputIterator first, InputIterator last, std::string delim=", ", std::string empty="{}", bool endl=true)
 {
 	// concept requirements
 	__glibcxx_function_requires(_InputIteratorConcept<InputIterator>);
 	__glibcxx_requires_valid_range(first, last);
 	typedef typename std::iterator_traits<InputIterator>::value_type ValueType;
 
-	switch (std::distance(first, last)) {
+	typedef typename std::iterator_traits<InputIterator>::difference_type DistanceType;
+
+	DistanceType dist = std::distance(first, last);
+	std::cout << '[' << dist << "] ";
+	switch (dist) {
 	case 0:
 		std::cout << empty;
 		break;

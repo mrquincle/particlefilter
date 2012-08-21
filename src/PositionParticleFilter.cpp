@@ -282,8 +282,6 @@ void PositionParticleFilter::GetLikelihoods(CImg<DataValue> & result, RegionSize
 	}
 }
 
-static int save_index = 0;
-
 /**
  * Calculate the likelihood of a player and the state indicated by the parameter
  * "state" which contains an x and y position, a width and a height. This is used
@@ -324,37 +322,8 @@ float PositionParticleFilter::Likelihood(ParticleState & state) {
 	cout << __func__ << ": Calculate distance to histogram of the to-be-tracked object" << endl;
 #endif
 
-//	if ((state.x[0] == 281 && state.y[0] == 278)) {
-//		HistogramValues hist;
-//		histogram.getFrequencies(hist);
-//		cout << "Histogram result for " << state << " ";
-//		print (hist.begin(), hist.end());
-//		cout << "Total # of samples: " << histogram.getSamples() << endl;
-//		stringstream s; s.clear(); s.str("");
-//		s << "img" << ++save_index << ".jpeg";
-//		img_selection._save_jpeg(NULL, s.str().c_str(), 100);
-//	}
-	Value dist = dobots::distance<Value>(tracked_object_histogram, result, dobots::DM_SQUARED_HELLINGER);
-//	if ((state.x[0] == 281 && state.y[0] == 278)) {
-//		cout << "Distance: " << dist << endl;
-//	}
+	Value dist = dobots::distance<Value>(tracked_object_histogram.begin(), tracked_object_histogram.end(), result.begin(), result.end(),
+			dobots::DM_SQUARED_HELLINGER);
 	return std::exp(-20.0 * dist);
 }
 
-
-//void swap(ParticleState &dest, ParticleState &source) {
-//	cout << "Source contains:";
-//	print(source.x.begin(), source.x.end());
-//
-//	cout << "Destination contains:";
-//	print(dest.x.begin(), dest.x.end());
-//
-//	cout << "Swap from source to dest" << endl;
-//	std::swap(dest.x, source.x);
-//	std::swap(dest.y, source.y);
-//	std::swap(dest.scale, source.scale);
-//	std::swap(dest.id, source.id);
-//	std::swap(dest.height, source.height);
-//	std::swap(dest.width, source.width);
-//	cout << "Done swapping" << endl;
-//}

@@ -32,6 +32,7 @@
 #include <CImg.h>
 #include <ImageSource.h>
 
+#include <testDistance.h>
 #include <testRegression.h>
 #include <testHistogram.h>
 #include <testFilter.h>
@@ -76,6 +77,7 @@ int main() {
 //	test_histogram();
 //	test_autoregression();
 //	test_filter();
+//	test_distance();
 //	create_track_image();
 //	return EXIT_SUCCESS;
 

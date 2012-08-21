@@ -233,7 +233,7 @@ T distance(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, I
 		return -std::log(std::inner_product(first1, last1, first2, T(0), std::plus<T>(), battacharyya<T>));
 	case DM_HELLINGER:
 		return (std::sqrt(std::inner_product(first1, last1, first2, T(0), std::plus<T>(), hellinger<T>))) /
-			std::sqrt(2);
+				std::sqrt(2);
 	case DM_CHEBYSHEV:
 		return std::inner_product(first1, last1, first2, T(0), max<T>(), taxicab<T>);
 	case DM_MANHATTAN:
@@ -252,10 +252,10 @@ T distance(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2, I
 
 /**
  * Provide a similar template function, but now with containers instead of iterators. Be careful that now the
- * typename PointContainer is not checked for having actually "begin() and end()" operators.
+ * typename Point is not checked for having actually "begin() and end()" operators.
  */
-template<typename T, typename PointContainer>
-T distance_impl(PointContainer point1, PointContainer point2, DistanceMetric metric) {
+template<typename T, typename Point>
+T distance_impl(Point point1, Point point2, DistanceMetric metric) {
 	return distance(point1.begin(), point1.end(), point2.begin(), point2.end(), metric);
 }
 
@@ -265,7 +265,7 @@ T distance_impl(PointContainer point1, PointContainer point2, DistanceMetric met
  * distances between sets. It is a comparison functor. To do the comparison the distance between a
  * reference point, previously given, and each of the argument is calculated. If the first argument is
  * smaller, the function returns true.
- * @template_param		PointContainer should be a pointer to a container, e.g. std::vector<double>*
+ * @template_param		Point should be a pointer to a container, e.g. std::vector<double>*
  * @template_param		Iterator should be an iterator over the same type of container
  * @template_param		Value should be the value of the elements in the container
  * @param	 		point_metric to be used, e.g. Euclidean
@@ -274,18 +274,18 @@ T distance_impl(PointContainer point1, PointContainer point2, DistanceMetric met
  * @return			true if x is closer to the reference point than y
  * This struct requires the function of above.
  */
-template<typename PointContainer, typename InputIterator, typename Value>
-struct comp_point_distance: public std::binary_function<PointContainer, PointContainer, bool> {
-	comp_point_distance(DistanceMetric point_metric, InputIterator first_ref, InputIterator last_ref):
+template<typename Point, typename PointIterator, typename PointValueType>
+struct comp_point_distance: public std::binary_function<Point, Point, bool> {
+	comp_point_distance(DistanceMetric point_metric, PointIterator first_ref, PointIterator last_ref):
 		point_metric(point_metric), first_ref(first_ref), last_ref(last_ref) {
 	}
-	bool operator()(PointContainer x, PointContainer y) {
-		return distance<Value, InputIterator, InputIterator>(x->begin(), x->end(), first_ref, last_ref, point_metric) <
-				distance<Value, InputIterator, InputIterator>(y->begin(), y->end(), first_ref, last_ref, point_metric);
+	bool operator()(Point x, Point y) {
+		return distance<PointValueType, PointIterator, PointIterator>(x->begin(), x->end(), first_ref, last_ref, point_metric) <
+				distance<PointValueType, PointIterator, PointIterator>(y->begin(), y->end(), first_ref, last_ref, point_metric);
 	}
 	DistanceMetric point_metric;
-	InputIterator first_ref;
-	InputIterator last_ref;
+	PointIterator first_ref;
+	PointIterator last_ref;
 };
 
 /*
@@ -294,28 +294,27 @@ struct comp_point_distance: public std::binary_function<PointContainer, PointCon
  * TODO: make sure that the values of the iterator over the set correspond with the container over which the second iterator
  * runs.
  */
-template<typename T, typename InputIterator1, typename InputIterator2>
-T distance_to_point(InputIterator1 first_set, InputIterator1 last_set, InputIterator2 first_point, InputIterator2 last_point,
+template<typename T, typename SetIterator, typename PointIterator>
+T distance_to_point(SetIterator first_set, SetIterator last_set, PointIterator first_point, PointIterator last_point,
 		SetDistanceMetric set_metric, DistanceMetric point_metric) {
-	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>);
-	__glibcxx_function_requires(_InputIteratorConcept<InputIterator2>);
+	__glibcxx_function_requires(_InputIteratorConcept<SetIterator>);
+	__glibcxx_function_requires(_InputIteratorConcept<PointIterator>);
 	__glibcxx_requires_valid_range(first1, last1);
 	__glibcxx_requires_valid_range(first2, last2);
-	typedef typename std::iterator_traits<InputIterator1>::value_type IterValue1; // e.g. std::vector<double>*
-	typedef typename std::iterator_traits<InputIterator2>::value_type IterValue2; // e.g. double
-//	__glibcxx_function_requires(_InputIteratorConcept<IterValue1>);
+	typedef typename std::iterator_traits<SetIterator>::value_type PointType; // e.g. std::vector<double>*
+	typedef typename std::iterator_traits<PointIterator>::value_type PointValueType; // e.g. double
 
 	T result = T(-1);
-	IterValue1 tmp;
+	PointType tmp;
 	switch(set_metric) {
 	case SDM_INFIMIM: // the smallest distance between the point and any point in the set
-		tmp = *std::min_element(first_set, last_set, comp_point_distance<IterValue1, InputIterator2, IterValue2>(
-			point_metric, first_point, last_point));
-		return distance<IterValue2, InputIterator2, InputIterator2>(tmp->begin(), tmp->end(), first_point, last_point, point_metric);
+		tmp = *std::min_element(first_set, last_set, comp_point_distance<PointType, PointIterator, PointValueType>(
+				point_metric, first_point, last_point));
+		return distance<PointValueType, PointIterator, PointIterator>(tmp->begin(), tmp->end(), first_point, last_point, point_metric);
 	case SDM_SUPREMUM: // the largest distance between the point and any point in the set
-		tmp = *std::max_element(first_set, last_set, comp_point_distance<IterValue1, InputIterator2, IterValue2>(
-			point_metric, first_point, last_point));
-		return distance<IterValue2, InputIterator2, InputIterator2>(tmp->begin(), tmp->end(), first_point, last_point, point_metric);
+		tmp = *std::max_element(first_set, last_set, comp_point_distance<PointType, PointIterator, PointValueType>(
+				point_metric, first_point, last_point));
+		return distance<PointValueType, PointIterator, PointIterator>(tmp->begin(), tmp->end(), first_point, last_point, point_metric);
 	default:
 		std::cerr << "Not yet implemented" << std::endl;
 		break;
@@ -327,33 +326,33 @@ T distance_to_point(InputIterator1 first_set, InputIterator1 last_set, InputIter
 /**
  * Same function as above, but using iterators implicitly. Not safe.
  */
-template<typename T, typename PointContainer, typename SetContainer>
-T distance_impl(SetContainer set, PointContainer point, SetDistanceMetric set_metric, DistanceMetric point_metric) {
+template<typename T, typename Point, typename SetContainer>
+T distance_impl(SetContainer set, Point point, SetDistanceMetric set_metric, DistanceMetric point_metric) {
 	return distance_to_point(set.begin(), set.end(), point.begin(), point.end(), set_metric, point_metric);
 }
 
 /**
- * @template_param		PointContainer should be something like std::vector<float> *
- * @template_param		InputIterator1 should be an iterator over a set
- * @template_param		InputIterator2 should be an iterator over the point container
+ * @template_param		Point should be something like std::vector<float> *
+ * @template_param		SetIterator should be an iterator over a set
+ * @template_param		PointIterator should be an iterator over the point container
  * @template_param		Value should be the type of the values in the point container, e.g. float
  * @return			true if point is closer to
  */
-template<typename PointContainer, typename InputIterator1, typename InputIterator2, typename Value>
-struct comp_point_set_distance: public std::binary_function<PointContainer, PointContainer, bool> {
-	comp_point_set_distance(SetDistanceMetric set_metric, DistanceMetric point_metric, InputIterator1 first_set,
-			InputIterator1 last_set):
-		set_metric(set_metric), point_metric(point_metric), first_set(first_set), last_set(last_set) {
+template<typename Point, typename SetIterator, typename PointIterator, typename Value>
+struct comp_point_set_distance: public std::binary_function<Point, Point, bool> {
+	comp_point_set_distance(SetDistanceMetric set_metric, DistanceMetric point_metric, SetIterator first_set,
+			SetIterator last_set):
+				set_metric(set_metric), point_metric(point_metric), first_set(first_set), last_set(last_set) {
 	}
 
-	bool operator()(PointContainer x, PointContainer y) const {
-		return distance_to_point<Value, InputIterator1, InputIterator2>(first_set, last_set, x->begin(), x->end(), set_metric, point_metric) <
-			distance_to_point<Value, InputIterator1, InputIterator2>(first_set, last_set, y->begin(), y->end(), set_metric, point_metric);
+	bool operator()(const Point & x, const Point & y) const {
+		return distance_to_point<Value, SetIterator, PointIterator>(first_set, last_set, x->begin(), x->end(), set_metric, point_metric) <
+				distance_to_point<Value, SetIterator, PointIterator>(first_set, last_set, y->begin(), y->end(), set_metric, point_metric);
 	}
 	SetDistanceMetric set_metric;
 	DistanceMetric point_metric;
-	InputIterator1 first_set;
-	InputIterator1 last_set;
+	SetIterator first_set;
+	SetIterator last_set;
 };
 
 
@@ -370,30 +369,37 @@ struct comp_point_set_distance: public std::binary_function<PointContainer, Poin
  * @param set1			another set of data points
  * @param set_metric		the metric to be used between the two sets
  * @param metric		the metric to be used to define distances between points
+ *
+ * Caution! The SetIterator and the PointIterator do not correspond to the first set of two iterators, respectively the last set of two
+ * iterators. All of these iterators should be of the same type SetIterator. However, they should be decomposable into PointIterators.
+ * In other words, the set entities should have the PointIterator as valid iterator defined over each of their elements. This definitely
+ * requires you to define the template variables (because they cannot be retrieved from the arguments).
  */
-template<typename T, typename InputIterator1, typename InputIterator2>
-T distance_to_set(InputIterator1 first1, InputIterator1 last1, InputIterator1 first2, InputIterator1 last2,
+template<typename T, typename SetIterator, typename PointIterator>
+T distance_to_set(SetIterator first1, SetIterator last1, SetIterator first2, SetIterator last2,
 		SetDistanceMetric set_metric, DistanceMetric point_metric) {
-	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>);
-	__glibcxx_function_requires(_InputIteratorConcept<InputIterator2>);
+	__glibcxx_function_requires(_InputIteratorConcept<SetIterator>);
+	__glibcxx_function_requires(_InputIteratorConcept<PointIterator>);
 	__glibcxx_requires_valid_range(first1, last1);
 	__glibcxx_requires_valid_range(first2, last2);
-	typedef typename std::iterator_traits<InputIterator1>::value_type IterValue1; // e.g. std::vector<double>*
-	typedef typename std::iterator_traits<InputIterator2>::value_type IterValue2; // e.g. double
+	typedef typename std::iterator_traits<SetIterator>::value_type PointType; // e.g. std::vector<double>*
+	typedef typename std::iterator_traits<PointIterator>::value_type PointValueType; // e.g. double
 
 	SetDistanceMetric overwrite_set_metric;
-	IterValue1 tmp;
+	PointType tmp;
 	switch(set_metric) {
 	case SDM_HAUSDORFF: {
-		T dist_xy = distance_to_set<T,InputIterator1,InputIterator2>(first1, last1, first2, last2, SDM_SUPINF, point_metric);
-		T dist_yx = distance_to_set<T,InputIterator1,InputIterator2>(first2, last2, first1, last1, SDM_SUPINF, point_metric);
+		T dist_xy = distance_to_set<T,SetIterator,PointIterator>(first1, last1, first2, last2, SDM_SUPINF, point_metric);
+		T dist_yx = distance_to_set<T,SetIterator,PointIterator>(first2, last2, first1, last1, SDM_SUPINF, point_metric);
 		return std::max(dist_xy, dist_yx);
 	}
 	case SDM_SUPINF:
 		overwrite_set_metric = SDM_INFIMIM;
 		tmp = *std::max_element(first1, last1,
-			comp_point_set_distance<IterValue1, InputIterator1, InputIterator2, IterValue2>(overwrite_set_metric, point_metric, first2, last2));
-		return distance_to_point<IterValue2, InputIterator1, InputIterator2>(first2, last2, tmp->begin(), tmp->end(), overwrite_set_metric, point_metric);
+				comp_point_set_distance<PointType, SetIterator, PointIterator, PointValueType>(
+						overwrite_set_metric, point_metric, first2, last2));
+		return distance_to_point<PointValueType, SetIterator, PointIterator>(
+				first2, last2, tmp->begin(), tmp->end(), overwrite_set_metric, point_metric);
 		break;
 	default:
 		std::cerr << "Not yet implemented" << std::endl;

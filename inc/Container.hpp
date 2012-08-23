@@ -24,6 +24,8 @@
 #ifndef CONTAINER_H_
 #define CONTAINER_H_
 
+#define _GLIBCXX_CONCEPT_CHECKS
+
 // General files
 #include <cassert>
 #include <algorithm>
@@ -405,6 +407,174 @@ T distance_to_set(SetIterator first1, SetIterator last1, SetIterator first2, Set
 		std::cerr << "Not yet implemented" << std::endl;
 		break;
 	}
+}
+
+/**
+ *
+ */
+template <typename T>
+T zero_func() { return T(0); }
+
+template<typename InputIterator1>
+void clean(InputIterator1 first1, InputIterator1 last1) {
+	typedef typename std::iterator_traits<InputIterator1>::value_type ValueType1;
+	std::generate_n(first1, last1 - first1, zero_func<ValueType1>);
+}
+
+/**
+ * Calculate the integral of a function given a kernel in the discrete case.
+ *
+ * Functions like remove_copy which return a series of values in the STL C++ library, require the
+ * user to allocate the proper number of items beforehand. This seems to me a pain for functions
+ * where this is not known beforehand. However, to be consistent with that thought package, you will
+ * need to have the output iterator pointed to a container that is large enough.
+ */
+template<typename InputIterator1, typename InputIterator2, typename OutputIterator>
+OutputIterator
+integral(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+		OutputIterator result) {
+
+	typedef typename std::iterator_traits<InputIterator1>::value_type ValueType1;
+
+	// concept requirements
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>);
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator2>);
+	__glibcxx_function_requires(_OutputIteratorConcept<OutputIterator, ValueType1>);
+	__glibcxx_requires_valid_range(first1,last1);
+
+	if (first1 == last1)
+		return result;
+	ValueType1 value = *first1 * *first2;
+	*result = value;
+	while (++first1 != last1)
+	{
+		value = value + *first1 * *++first2;
+		*++result = value;
+	}
+	return ++result;
+}
+
+/**
+ *
+ */
+template<typename InputIterator1, typename InputIterator2, typename OutputIterator, typename BinaryOperation1, typename BinaryOperation2>
+OutputIterator
+integral(InputIterator1 first1, InputIterator1 last1, InputIterator2 first2,
+		OutputIterator result, BinaryOperation1 binary_op1, BinaryOperation2 binary_op2) {
+
+	typedef typename std::iterator_traits<InputIterator1>::value_type ValueType1;
+
+	// concept requirements
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>);
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator2>);
+	__glibcxx_function_requires(_OutputIteratorConcept<OutputIterator, ValueType1>);
+	__glibcxx_requires_valid_range(first1,last1);
+
+	if (first1 == last1)
+		return result;
+	ValueType1 value = *first1 * *first2
+			*result = value;
+	while (++first1 != last1)
+	{
+		value = binary_op1(value, binary_op2(*first1, *++first2));
+		*++result = value;
+
+	}
+	return ++result;
+}
+
+/**
+ * The Cauchy product:
+ *   c_n = \sum_{k=0}^n { a_k * b_{n-k} }
+ * This product is very similar to the integral. It is not calculated only for the total size of
+ * the vector, but for each element of the vector.
+ * @param 			last2 is an iterator to the LAST element of the second vector
+ */
+template<typename InputIterator1, typename InputIterator2, typename OutputIterator>
+OutputIterator
+cauchy_product(InputIterator1 first1, InputIterator1 last1, InputIterator2 last2,
+		OutputIterator result) {
+
+	typedef typename std::iterator_traits<InputIterator1>::value_type ValueType1;
+
+	// concept requirements
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>);
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator2>);
+	__glibcxx_function_requires(_OutputIteratorConcept<OutputIterator, ValueType1>);
+	__glibcxx_requires_valid_range(first1,last1);
+
+	if (first1 == last1)
+		return result;
+
+	ValueType1 value = *first1 * *--last2;
+	*result = value;
+	while (++first1 != last1)
+	{
+		value = value + *first1 * *--last2;
+		*++result = value;
+	}
+	return ++result;
+}
+
+/**
+ * Inner product where we iterate backwards over the second container.
+ */
+template<typename InputIterator1, typename InputIterator2, typename Tp>
+  inline Tp
+  reverse_inner_product(InputIterator1 first1, InputIterator1 last1,
+		  InputIterator2 last2, Tp init)
+  {
+    // concept requirements
+    __glibcxx_function_requires(_InputIteratorConcept<InputIterator1>)
+    __glibcxx_function_requires(_InputIteratorConcept<InputIterator2>)
+    __glibcxx_requires_valid_range(first1, last1);
+
+    --last2;
+
+    for (; first1 != last1; ++first1, --last2)
+	init = init + (*first1 * *last2);
+    return init;
+  }
+
+
+/**
+ * This function calculates the discrete convolution between two functions represented by for example
+ * vectors or sets. It calculates the product of x[i] and y[shift-i]. So, with shift of 1, it multiplies
+ * x[0] with x[1], x[1] with y[0], x[2] with y[-1], etc. So, a normal convolution would not work for a
+ * finite range of values (like a vector). The circular_convolution however, works fine with a limited
+ * sequence. It calculates:
+ *   conv_n(shift) = \sum_{k=0}^{n-1} { a_k * b_{(shift-k) % n} }
+ *
+ * In other words, using vector terminology. It calculates the inner product between the two vectors with
+ * the second one reversed and each time shifted a bit more with "shift" (default 1) for in total N times,
+ * the results which are written into an output container.
+ *
+ * @param			first1 beginning of container
+ * @param			last1 end of container
+ * @param			first2 beginning of second container
+ * @param 			last2 end of second container (required for rotation)
+ * @param			result begin of container for results (needs capacity last1 - first1)
+ * @param			(optional) shift with which to calculate the convolution, default 1
+ * @return			end of result container
+ */
+template<typename ForwardIterator1, typename ForwardIterator2, typename OutputIterator>
+OutputIterator circular_convolution(ForwardIterator1 first1, ForwardIterator1 last1, ForwardIterator2 first2, ForwardIterator2 last2,
+		OutputIterator result, int shift = 1) {
+	__glibcxx_function_requires(_ForwardIteratorConcept<ForwardIterator1>);
+	__glibcxx_function_requires(_ForwardIteratorConcept<ForwardIterator2>);
+	__glibcxx_function_requires(_OutputIteratorConcept<OutputIterator>);
+	__glibcxx_requires_valid_range(first1, last1);
+	__glibcxx_requires_valid_range(first2, last2);
+
+	typedef typename std::iterator_traits<ForwardIterator1>::value_type ValueType1;
+	typedef typename std::iterator_traits<ForwardIterator1>::difference_type DistanceType1;
+
+	DistanceType1 dist = std::distance(first1, last1);
+	while (dist--) {
+		std::rotate(first2, last2-shift, last2);
+		*result++ = reverse_inner_product(first1, last1, last2, ValueType1(0));
+	}
+	return result;
 }
 
 

@@ -36,6 +36,7 @@
 #include <testRegression.h>
 #include <testHistogram.h>
 #include <testFilter.h>
+#include <testConvolution.h>
 #include <createTrackImage.h>
 
 using namespace cimg_library;
@@ -79,6 +80,7 @@ int main() {
 //	test_filter();
 //	test_distance();
 //	create_track_image();
+//	test_convolution();
 //	return EXIT_SUCCESS;
 
 	PositionParticleFilter filter;

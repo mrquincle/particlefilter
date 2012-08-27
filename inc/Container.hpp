@@ -94,6 +94,13 @@ enum SetDistanceMetric {
 	SDM_TYPES
 };
 
+enum Norm {
+	N_EUCLIDEAN,
+	N_TAXICAB,
+	N_MAXIMUM,
+	N_TYPES
+};
+
 /**
  * Somehow "std::max" is only given as a normal template function and not as a derivation of
  * a function object derived from binary_function.
@@ -141,6 +148,9 @@ T hellinger(T x, T y) {
 	return tmp*tmp;
 }
 
+template<typename T>
+T square(T x) { return x * x; }
+
 /**
  * Create a template function which moves container x from or towards y with a learning rate "mu".
  * A positive mu will move "x" away, while a negative mu will move "x" towards "y".
@@ -156,6 +166,94 @@ public:
 		return result;
 	}
 };
+
+/**
+ *  @brief  Accumulate values in a range with one operation for the accumulation and
+ *  one operation that has to be performed on the to be accumulated element.
+ *
+ *  Accumulates the values in the range [first,last) using the function
+ *  object @a binary_op.  The initial value is @a init.  The values are
+ *  processed in order.
+ *
+ *  @param  first		Start of range.
+ *  @param  last		End of range.
+ *  @param  init		Starting value to add other values to.
+ *  @param  binary_op		Function object to accumulate with.
+ *  @param  unary_op		Function object on element before accumulation.
+ *  @return  The final sum.
+ */
+template<typename InputIterator, typename T, typename BinaryOperation, typename UnaryOperation>
+inline T accumulate(InputIterator first, InputIterator last, T init,
+		BinaryOperation binary_op, UnaryOperation unary_op)
+{
+	// concept requirements
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator>);
+	__glibcxx_requires_valid_range(first, last);
+
+	for (; first != last; ++first)
+		init = binary_op(init, unary_op(*first));
+	return init;
+}
+
+/**
+ *  @brief  Return the maximum element in a range given one additional operation that
+ *  is performed on it beforehand. For example if @ a unary_op is std::abs<T> it returns
+ *  the location of the element with the maximum absolute value.
+ *  @ingroup sorting_algorithms
+ *  @param  first  			start of range
+ *  @param  last   			end of range
+ *  @param  unary_op			unary operation
+ *  @return  Iterator referencing the first instance of the largest value.
+ */
+template<typename ForwardIterator, typename UnaryOperation>
+ForwardIterator
+max_element(ForwardIterator first, ForwardIterator last, UnaryOperation unary_op)
+{
+	// concept requirements
+	__glibcxx_function_requires(ForwardIteratorConcept<ForwardIterator>);
+	__glibcxx_function_requires(LessThanComparableConcept<
+			typename iterator_traits<ForwardIterator>::value_type>);
+	__glibcxx_requires_valid_range(first, last);
+
+	if (first == last)
+		return first;
+	ForwardIterator result = first;
+	while (++first != last)
+		if (unary_op(*result) < unary_op(*first))
+			result = first;
+	return result;
+}
+
+
+/**
+ * This function tells something about the "size" or "length" of a container, mathematically called "norm".
+ * There are currently several norms implemented:
+ *   N_EUCLIDEAN:			return sqrt (sum_i { (x_i)^2 } ) (L2 norm)
+ *   N_TAXICAB:				return sum_i { abs(x_i) } (L1 norm)
+ *   N_MAXIMUM				return max_i (x_i) (maximum norm)
+ * @param first				start of the container
+ * @param last				end of the container
+ * @param norm				a certain type of norm, e.g. N_EUCLIDEAN
+ * @return				the norm
+ */
+template<typename T, typename InputIterator>
+T norm(InputIterator first, InputIterator last, Norm norm) {
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator>);
+	__glibcxx_requires_valid_range(first, last);
+
+	switch (norm) {
+	case N_EUCLIDEAN:
+		return std::sqrt(accumulate(first, last, T(0), std::plus<T>(), square<T> ) );
+	case N_TAXICAB:
+		return accumulate(first, last, T(0), std::plus<T>(), std::abs<T>);
+	case N_MAXIMUM:
+		if (std::distance(first,last) == 0) return T(0);
+		return *max_element(first, last, std::abs<T>);
+	default:
+		std::cerr << "Unknown norm" << std::endl;
+		return T(-1);
+	}
+}
 
 /**
  * Incremental adjustment of a standard container towards a reference container.
@@ -211,8 +309,8 @@ void decreaseDistance(InputIterator1 tomove_first, InputIterator1 tomove_last, I
  * It is assumed that the containers are of equal size.
  * @param first1			start of the first container
  * @param last1				end of the first container
- * @param second1			start of the second container
- * @param second1			end of the second container
+ * @param first2			start of the second container
+ * @param last2				end of the second container
  * @param metric			a certain distance metric
  * @return				the distance between the two containers
  */
@@ -520,21 +618,21 @@ cauchy_product(InputIterator1 first1, InputIterator1 last1, InputIterator2 last2
  * Inner product where we iterate backwards over the second container.
  */
 template<typename InputIterator1, typename InputIterator2, typename Tp>
-  inline Tp
-  reverse_inner_product(InputIterator1 first1, InputIterator1 last1,
-		  InputIterator2 last2, Tp init)
-  {
-    // concept requirements
-    __glibcxx_function_requires(_InputIteratorConcept<InputIterator1>)
-    __glibcxx_function_requires(_InputIteratorConcept<InputIterator2>)
-    __glibcxx_requires_valid_range(first1, last1);
+inline Tp
+reverse_inner_product(InputIterator1 first1, InputIterator1 last1,
+		InputIterator2 last2, Tp init)
+{
+	// concept requirements
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>)
+						    __glibcxx_function_requires(_InputIteratorConcept<InputIterator2>)
+						    __glibcxx_requires_valid_range(first1, last1);
 
-    --last2;
+	--last2;
 
-    for (; first1 != last1; ++first1, --last2)
-	init = init + (*first1 * *last2);
-    return init;
-  }
+	for (; first1 != last1; ++first1, --last2)
+		init = init + (*first1 * *last2);
+	return init;
+}
 
 
 /**

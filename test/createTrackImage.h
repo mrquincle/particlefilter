@@ -42,8 +42,8 @@ void create_track_image() {
 		return;
 	}
 
-	string path = home + "/mydata/active_wheel_camera";
-	string basename = "t1";
+	string path = home + "/mydata/dotty";
+	string basename = "image1";
 	string extension = ".jpg";
 
 	string file = path + '/' + basename + extension;

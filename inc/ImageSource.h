@@ -15,7 +15,7 @@
  * Copyright © 2012 Anne van Rossum <anne@almende.com>
  *
  * @author  Anne C. van Rossum
- * @date    Aug 15, 2012
+ * @date    Sep 18, 2012
  * @project Replicator FP7
  * @company Almende B.V.
  * @case    modular robotics / sensor fusion
@@ -25,74 +25,50 @@
 #ifndef IMAGESOURCE_H_
 #define IMAGESOURCE_H_
 
+// General files
 #include <CImg.h>
-#include <string>
-#include <vector>
-#include <cassert>
 
 /* **************************************************************************************
  * Interface of ImageSource
  * **************************************************************************************/
 
-
+template <typename Image>
 class ImageSource {
 public:
 	//! Constructor ImageSource
-	ImageSource();
+	ImageSource(): img_path(""), img_basename("image"), img_extension(".jpeg") {}
 
 	//! Destructor ~ImageSource
-	virtual ~ImageSource();
-
-	//! Get the path
-	void SetPath(std::string path) { this->path = path; }
-
-	//! Get extension mask
-	void SetExtension(std::string extension) { this->extension = extension; }
+	virtual ~ImageSource() {}
 
 	//! Perform functionality that is required to get images
-	bool Update();
+	virtual bool Update() = 0;
 
-	/**
-	 * Get an image (the next image if there are multiple).
-	 */
-	template <typename T>
-	cimg_library::CImg<T>* getImage() {
-		return getImage<T>(nextFile());
-	}
+	//! Get an image (the next image if there are multiple).
+	virtual Image* getImage() = 0;
 
-	/**
-	 * Get a specific image with given name, should reside in previously set path.
-	 */
-	template <typename T>
-	cimg_library::CImg<T>* getImage(std::string file) {
-		file = path + '/' + file;
-		cimg_library::CImg<T> *img = new cimg_library::CImg<T>(file.c_str());
-		return img;
-	}
+	//! Get an image but shifted in maximum two directions.
+	virtual Image* getImageShifted(int shift_x, int shift_y) = 0;
 
-	template <typename T>
-	cimg_library::CImg<T>* getImageShifted(int shift_x, int shift_y) {
-		assert (!filenames.empty());
-		cimg_library::CImg<T> *img = getImage<T>(filenames.front());
-		img->shift(shift_x, shift_y, 0, 0, 2);
-		return img;
-	}
+	//! Get the path
+	void SetPath(std::string path) { img_path = path; }
+
+	//! Get the path
+	void SetBasename(std::string basename) { img_basename = basename; }
+
+	//! Get extension mask
+	void SetExtension(std::string extension) { img_extension = extension; }
 
 protected:
-	std::string nextFile();
-private:
-	std::string path;
+	//! Search path for the pictures or path where they will need to be written
+	std::string img_path;
 
-	std::string extension;
+	//! Basename for the pictures to be loaded or saved
+	std::string img_basename;
 
-	//! All files with pictures (does not contain path)
-	std::vector<std::string> filenames;
+	//! Mask for the extensions of the pictures to be found or stored
+	std::string img_extension;
 
-	//! Pointer to current file
-	int file_ptr;
-
-	//! Use the entire series in reverse (convenient for tracking)
-	bool copy_reverse_series;
 };
 
 #endif /* IMAGESOURCE_H_ */

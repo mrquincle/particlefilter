@@ -101,6 +101,14 @@ enum Norm {
 	N_TYPES
 };
 
+enum Mean {
+	M_ARITHMETIC,
+	M_GEOMETRIC,
+	M_HARMONIC,
+	M_QUADRATIC,
+	M_TYPES
+};
+
 /**
  * Somehow "std::max" is only given as a normal template function and not as a derivation of
  * a function object derived from binary_function.
@@ -148,8 +156,26 @@ T hellinger(T x, T y) {
 	return tmp*tmp;
 }
 
+/**
+ * The hyperbolic distance is the absolute difference between the log of two variables.
+ */
+template<typename T>
+T hyperbolic(const T & x, const T & y) {
+	return std::abs(std::log(x) - std::log(y));
+}
+
+/**
+ * Template function for the square of a variable. In the std library only the square
+ * root is defined (as std::sqrt).
+ */
 template<typename T>
 T square(T x) { return x * x; }
+
+/**
+ * Template function for 1/x.
+ */
+template<typename T>
+T inverse(T x) { return T(1)/x; }
 
 /**
  * Create a template function which moves container x from or towards y with a learning rate "mu".
@@ -249,6 +275,39 @@ T norm(InputIterator first, InputIterator last, Norm norm) {
 	case N_MAXIMUM:
 		if (std::distance(first,last) == 0) return T(0);
 		return *max_element(first, last, std::abs<T>);
+	default:
+		std::cerr << "Unknown norm" << std::endl;
+		return T(-1);
+	}
+}
+
+/**
+ * This function tells something about the static ensemble behaviour in the form of a "mean"
+ * There are currently several means implemented:
+ *   M_ARITHMETIC:			return 1/n (sum_i { (x_i) } )
+ *   M_GEOMETRIC:			return exp ( 1/n (sum_i { log(x_i) } ) )
+ *   M_HARMONIC:			return max_i (x_i) (maximum norm)
+ * @param first				start of the container
+ * @param last				end of the container
+ * @param mean				a certain type of norm, e.g. N_EUCLIDEAN
+ * @return				the norm
+ */
+template<typename T, typename InputIterator>
+T mean(InputIterator first, InputIterator last, Norm norm) {
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator>);
+	__glibcxx_requires_valid_range(first, last);
+	typedef typename std::iterator_traits<InputIterator>::difference_type DistanceType1;
+
+	DistanceType1 dist = std::distance(first, last);
+	if (!dist) return T(0);
+
+	switch (norm) {
+	case M_ARITHMETIC:
+		return 1/T(dist)*std::accumulate(first, last, T(0));
+	case M_GEOMETRIC:
+		return std::exp(1/T(dist)*accumulate(first, last, T(0), std::plus<T>(), std::log<T>));
+	case M_HARMONIC:
+		return T(dist)/accumulate(first, last, T(0), std::plus<T>(), inverse<T>);
 	default:
 		std::cerr << "Unknown norm" << std::endl;
 		return T(-1);
@@ -623,17 +682,48 @@ reverse_inner_product(InputIterator1 first1, InputIterator1 last1,
 		InputIterator2 last2, Tp init)
 {
 	// concept requirements
-	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>)
-						    __glibcxx_function_requires(_InputIteratorConcept<InputIterator2>)
-						    __glibcxx_requires_valid_range(first1, last1);
-
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator1>);
+	__glibcxx_function_requires(_InputIteratorConcept<InputIterator2>);
+	__glibcxx_requires_valid_range(first1, last1);
 	--last2;
-
 	for (; first1 != last1; ++first1, --last2)
 		init = init + (*first1 * *last2);
 	return init;
 }
 
+/**
+ * The function argmin calculates unary_op(x_i) and unary_op(x_j) for all i and j in vector X and returns
+ * that index that is minimum.
+ * 	{x*} = argmin_x f(x)
+ * The {} mean that it is in principle possible to return a set, which we will not. The *means that it is
+ * the minimum of all possible x. The argmin_x will input every possible x in function f. And the function
+ * takes only one argument, it is a unary_op.
+ * Note, that this function is actually almost the same as std::min_element() except that the latter takes
+ * a comparison functor as (optional) argument and this function takes a unary operator.
+ * @param first 		beginning of container
+ * @param last 			end of container
+ * @param unary_op		function to perform
+ * @param init			minimum value (set it to first element in container if you don't want it)
+ * @return			index to minimum value
+ */
+template<typename ForwardIterator, typename UnaryOperation>
+ForwardIterator
+argmin(ForwardIterator first, ForwardIterator last, UnaryOperation unary_op) {
+
+	typedef typename std::iterator_traits<ForwardIterator>::value_type ValueType;
+
+	// concept requirements
+	__glibcxx_function_requires(_ForwardIteratorConcept<ForwardIterator>);
+	__glibcxx_requires_valid_range(first,last);
+
+	if (first == last)
+		return first;
+	ForwardIterator result = first;
+	while (++first != last)
+		if (unary_op(*first) < unary_op(*result))
+			result = first;
+	return result;
+}
 
 /**
  * This function calculates the discrete convolution between two functions represented by for example

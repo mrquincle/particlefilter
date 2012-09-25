@@ -28,9 +28,12 @@
 
 #include <algorithm>
 #include <vector>
+#include <cstdlib>
+#define cimg_use_jpeg
 
 #include <CImg.h>
-#include <ImageSource.h>
+#include <FileImageSource.h>
+#include <IpcamImageSource.h>
 
 #include <testDistance.h>
 #include <testRegression.h>
@@ -43,6 +46,8 @@ using namespace cimg_library;
 using namespace std;
 
 const DataValue red[] = { 255,0,0 }, green[] = { 0,255,0 }, blue[] = { 0,0,255 };
+
+typedef cimg_library::CImg<DataValue> ImageType;
 
 /* **************************************************************************************
  * Implementation of main
@@ -84,15 +89,24 @@ int main() {
 //	return EXIT_SUCCESS;
 
 	PositionParticleFilter filter;
-	ImageSource source;
+	//FileImageSource<ImageType> source;
+	IpcamImageSource<ImageType> source;
 
-	string path = "/home/anne/mydata/active_wheel_camera";
+	string home = string(getenv("HOME"));
+	if (home.empty()) {
+		cerr << "Error: no $HOME env. variable" << endl;
+		return EXIT_FAILURE;
+	}
+
+	string path = home + "/mydata/dotty";
 	string extension = ".jpg";
 
 	srand48(seed);
 
 	source.SetPath(path);
+#ifdef FROM_FILE
 	source.SetExtension(extension);
+#endif
 	if (!source.Update()) {
 		cerr << "Wrong path?" << endl;
 		return EXIT_FAILURE;
@@ -100,8 +114,11 @@ int main() {
 
 	string fn = "target_t1_1924674796";
 
-	string track = fn + ".jpeg";
-	CImg<DataValue> &track_img = *source.getImage<DataValue>(track);
+	FileImageSource<ImageType> track;
+	track.SetPath(path);
+	track.SetExtension(extension);
+	string track_fn = fn + ".jpeg";
+	ImageType &track_img = *track.getImage(track_fn);
 
 	NormalizedHistogramValues result;
 	getHistogram(track_img, result);
@@ -126,8 +143,14 @@ int main() {
 	int frame_id = 0;
 	while (++frame_id < frame_count) {
 
-//		CImg<DataValue> &img = *source.getImage<DataValue>();
-		CImg<DataValue> &img = *source.getImageShifted<DataValue>(frame_id*shift, 0);
+#ifdef FROM_FILE
+		ImageType &img = *source.getImageShifted(frame_id*shift, 0);
+#else
+		ImageType &img = *source.getImage();
+//		CImgDisplay test_disp(img, "Show image");
+//		sleep (30);
+//		return 1;
+#endif
 
 		cout << "Clear coordinates" << endl;
 		coordinates.erase(coordinates.begin(), coordinates.end());

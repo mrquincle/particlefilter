@@ -32,6 +32,7 @@
 #include <iterator>
 #include <numeric>
 #include <cassert>
+#include <cmath>
 
 /* **************************************************************************************
  * Interface of ParticleFilter

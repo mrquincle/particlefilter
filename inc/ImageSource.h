@@ -27,6 +27,7 @@
 
 // General files
 #include <CImg.h>
+#include <string>
 
 /* **************************************************************************************
  * Interface of ImageSource

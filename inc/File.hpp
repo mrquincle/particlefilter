@@ -26,6 +26,7 @@
 #define FILE_HPP_
 
 #include <string>
+#include <vector>
 
 //! The fastest way to implement is to use boost::filesystem::recursive_directory,
 //! however, that adds another dependency (boost libraries), so we just use a simple path

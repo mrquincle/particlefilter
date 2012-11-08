@@ -41,6 +41,7 @@
 #include <testFilter.h>
 #include <testConvolution.h>
 #include <createTrackImage.h>
+#include <createImages.h>
 
 using namespace cimg_library;
 using namespace std;
@@ -86,7 +87,8 @@ int main() {
 //	test_distance();
 //	create_track_image();
 //	test_convolution();
-//	return EXIT_SUCCESS;
+	create_images();
+	return EXIT_SUCCESS;
 
 	PositionParticleFilter filter;
 	//FileImageSource<ImageType> source;
